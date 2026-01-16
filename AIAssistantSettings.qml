@@ -99,178 +99,385 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: Theme.spacingL
 
-                    // Provider Section
-                    Column {
+                    // Provider Configuration Card
+                    Rectangle {
                         width: parent.width
-                        spacing: Theme.spacingS
+                        height: providerContent.height + Theme.spacingL * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+                        border.width: 1
 
-                        StyledText {
-                            text: I18n.tr("Provider Configuration")
-                            font.pixelSize: Theme.fontSizeMedium
-                            font.weight: Font.Bold
-                            color: Theme.primary
-                        }
+                        Column {
+                            id: providerContent
+                            width: parent.width - Theme.spacingL * 2
+                            anchors.centerIn: parent
+                            spacing: Theme.spacingM
 
-                        // Provider Dropdown
-                        StyledText { text: I18n.tr("Provider"); font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText }
-                        DankDropdown {
-                            width: parent.width
-                            options: ["openai", "anthropic", "gemini", "custom"]
-                            currentValue: root.provider
-                            onValueChanged: value => save("provider", value)
-                        }
+                            // Header
+                            Row {
+                                width: parent.width
+                                spacing: Theme.spacingM
 
-                        // Base URL
-                        StyledText { text: I18n.tr("Base URL"); font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText }
-                        DankTextField {
-                            width: parent.width
-                            text: root.baseUrl
-                            placeholderText: "https://api.openai.com"
-                            onEditingFinished: save("baseUrl", text.trim())
-                        }
+                                DankIcon {
+                                    name: "settings"
+                                    size: Theme.iconSize
+                                    color: Theme.primary
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
 
-                        // Model
-                        StyledText { text: I18n.tr("Model"); font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText }
-                        DankTextField {
-                            width: parent.width
-                            text: root.model
-                            placeholderText: "gpt-4-mini"
-                            onEditingFinished: save("model", text.trim())
-                        }
-                    }
+                                StyledText {
+                                    text: I18n.tr("Provider Configuration")
+                                    font.pixelSize: Theme.fontSizeLarge
+                                    font.weight: Font.Medium
+                                    color: Theme.surfaceText
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
 
-                    // Auth Section
-                    Column {
-                        width: parent.width
-                        spacing: Theme.spacingS
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingS
 
-                        StyledText {
-                            text: I18n.tr("API Authentication")
-                            font.pixelSize: Theme.fontSizeMedium
-                            font.weight: Font.Bold
-                            color: Theme.primary
-                        }
+                                // Provider Dropdown
+                                StyledText {
+                                    text: I18n.tr("Provider")
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                }
+                                DankDropdown {
+                                    width: parent.width
+                                    options: ["openai", "anthropic", "gemini", "custom"]
+                                    currentValue: root.provider
+                                    onValueChanged: value => save("provider", value)
+                                }
 
-                        // API Key
-                        StyledText { text: I18n.tr("API Key"); font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText }
-                        DankTextField {
-                            width: parent.width
-                            // Logic: If saveApiKey is true, show saved key (root.apiKey). If false, show session key (aiService.sessionApiKey)
-                            text: root.saveApiKey ? root.apiKey : aiService.sessionApiKey
-                            echoMode: TextInput.Password
-                            placeholderText: I18n.tr("Enter API key")
-                            leftIconName: root.saveApiKey ? "lock" : "vpn_key"
-                            onEditingFinished: {
-                                if (root.saveApiKey) {
-                                    save("apiKey", text.trim())
-                                } else {
-                                    aiService.sessionApiKey = text.trim() // In memory
+                                // Base URL
+                                StyledText {
+                                    text: I18n.tr("Base URL")
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                }
+                                DankTextField {
+                                    width: parent.width
+                                    text: root.baseUrl
+                                    placeholderText: "https://api.openai.com"
+                                    onEditingFinished: save("baseUrl", text.trim())
+                                }
+
+                                // Model
+                                StyledText {
+                                    text: I18n.tr("Model")
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                }
+                                DankTextField {
+                                    width: parent.width
+                                    text: root.model
+                                    placeholderText: "gpt-4-mini"
+                                    onEditingFinished: save("model", text.trim())
                                 }
                             }
                         }
+                    }
 
-                        // Env Var
-                        StyledText { text: I18n.tr("API Key Env Var"); font.pixelSize: Theme.fontSizeSmall; color: Theme.surfaceVariantText }
-                        DankTextField {
-                            width: parent.width
-                            text: root.apiKeyEnvVar
-                            placeholderText: I18n.tr("e.g. OPENAI_API_KEY")
-                            leftIconName: "terminal"
-                            onEditingFinished: save("apiKeyEnvVar", text.trim())
-                        }
+                    // API Authentication Card
+                    Rectangle {
+                        width: parent.width
+                        height: authContent.height + Theme.spacingL * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+                        border.width: 1
 
-                        // Save Toggle
-                        RowLayout {
-                            width: parent.width
+                        Column {
+                            id: authContent
+                            width: parent.width - Theme.spacingL * 2
+                            anchors.centerIn: parent
                             spacing: Theme.spacingM
-                            StyledText {
-                                text: I18n.tr("Remember API Key")
-                                Layout.fillWidth: true
-                                color: Theme.surfaceText
+
+                            // Header
+                            Row {
+                                width: parent.width
+                                spacing: Theme.spacingM
+
+                                DankIcon {
+                                    name: "vpn_key"
+                                    size: Theme.iconSize
+                                    color: Theme.primary
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                StyledText {
+                                    text: I18n.tr("API Authentication")
+                                    font.pixelSize: Theme.fontSizeLarge
+                                    font.weight: Font.Medium
+                                    color: Theme.surfaceText
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
-                            DankToggle {
-                                checked: root.saveApiKey
-                                onToggled: checked => {
-                                    save("saveApiKey", checked)
-                                    if (checked && aiService.sessionApiKey) {
-                                        save("apiKey", aiService.sessionApiKey)
+
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingS
+
+                                // API Key
+                                StyledText {
+                                    text: I18n.tr("API Key")
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                }
+                                DankTextField {
+                                    width: parent.width
+                                    text: root.saveApiKey ? root.apiKey : aiService.sessionApiKey
+                                    echoMode: TextInput.Password
+                                    placeholderText: I18n.tr("Enter API key")
+                                    leftIconName: root.saveApiKey ? "lock" : "vpn_key"
+                                    onEditingFinished: {
+                                        if (root.saveApiKey) {
+                                            save("apiKey", text.trim())
+                                        } else {
+                                            aiService.sessionApiKey = text.trim()
+                                        }
+                                    }
+                                }
+
+                                // Env Var
+                                StyledText {
+                                    text: I18n.tr("API Key Env Var")
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                }
+                                DankTextField {
+                                    width: parent.width
+                                    text: root.apiKeyEnvVar
+                                    placeholderText: I18n.tr("e.g. OPENAI_API_KEY")
+                                    leftIconName: "terminal"
+                                    onEditingFinished: save("apiKeyEnvVar", text.trim())
+                                }
+
+                                // Remember API Key Toggle
+                                Item {
+                                    width: parent.width
+                                    height: Theme.spacingS
+                                }
+
+                                RowLayout {
+                                    width: parent.width
+                                    spacing: Theme.spacingM
+                                    StyledText {
+                                        text: I18n.tr("Remember API Key")
+                                        Layout.fillWidth: true
+                                        color: Theme.surfaceText
+                                        font.pixelSize: Theme.fontSizeMedium
+                                    }
+                                    DankToggle {
+                                        checked: root.saveApiKey
+                                        onToggled: checked => {
+                                            save("saveApiKey", checked)
+                                            if (checked && aiService.sessionApiKey) {
+                                                save("apiKey", aiService.sessionApiKey)
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
 
-                    // Parameters Section
-                    Column {
+                    // Temperature Card
+                    Rectangle {
                         width: parent.width
-                        spacing: Theme.spacingS
+                        height: tempContent.height + Theme.spacingL * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+                        border.width: 1
 
-                        StyledText {
-                            text: I18n.tr("Model Parameters")
-                            font.pixelSize: Theme.fontSizeMedium
-                            font.weight: Font.Bold
-                            color: Theme.primary
-                        }
+                        Column {
+                            id: tempContent
+                            width: parent.width - Theme.spacingL * 2
+                            anchors.centerIn: parent
+                            spacing: Theme.spacingS
 
-                        // Temperature
-                        RowLayout {
-                            width: parent.width
-                            StyledText { text: I18n.tr("Temperature"); color: Theme.surfaceVariantText }
-                            Item { Layout.fillWidth: true }
-                            StyledText { text: root.temperature.toFixed(1); color: Theme.primary }
-                        }
-                        DankSlider {
-                            width: parent.width
-                            height: 32
-                            minimum: 0
-                            maximum: 20
-                            value: Math.round(root.temperature * 10)
-                            showValue: false
-                            onSliderValueChanged: newValue => save("temperature", newValue / 10)
-                        }
+                            Row {
+                                width: parent.width
+                                spacing: Theme.spacingM
 
-                        // Max Tokens
-                        RowLayout {
-                            width: parent.width
-                            StyledText { text: I18n.tr("Max Tokens"); color: Theme.surfaceVariantText }
-                            Item { Layout.fillWidth: true }
-                            StyledText { text: root.maxTokens; color: Theme.primary }
-                        }
-                        DankSlider {
-                            width: parent.width
-                            height: 32
-                            minimum: 128
-                            maximum: 32768
-                            step: 256
-                            value: root.maxTokens
-                            showValue: false
-                            onSliderValueChanged: newValue => save("maxTokens", newValue)
+                                DankIcon {
+                                    name: "thermostat"
+                                    size: Theme.iconSize
+                                    color: Theme.primary
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Column {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: Theme.spacingXS
+                                    width: parent.width - parent.spacing - Theme.iconSize
+
+                                    StyledText {
+                                        text: I18n.tr("Temperature")
+                                        font.pixelSize: Theme.fontSizeLarge
+                                        font.weight: Font.Medium
+                                        color: Theme.surfaceText
+                                    }
+
+                                    StyledText {
+                                        text: I18n.tr("Controls randomness (0 = focused, 2 = creative)")
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.surfaceVariantText
+                                        wrapMode: Text.WordWrap
+                                        width: parent.width
+                                    }
+                                }
+                            }
+
+                            DankSlider {
+                                width: parent.width
+                                height: 32
+                                minimum: 0
+                                maximum: 20
+                                value: Math.round(root.temperature * 10)
+                                showValue: true
+                                unit: (value / 10).toFixed(1)
+                                onSliderValueChanged: newValue => save("temperature", newValue / 10)
+                            }
                         }
                     }
 
-                    // Display Section
-                    Column {
+                    // Max Tokens Card
+                    Rectangle {
                         width: parent.width
-                        spacing: Theme.spacingS
+                        height: tokensContent.height + Theme.spacingL * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+                        border.width: 1
 
-                        StyledText {
-                            text: I18n.tr("Display Options")
-                            font.pixelSize: Theme.fontSizeMedium
-                            font.weight: Font.Bold
-                            color: Theme.primary
-                        }
+                        Column {
+                            id: tokensContent
+                            width: parent.width - Theme.spacingL * 2
+                            anchors.centerIn: parent
+                            spacing: Theme.spacingS
 
-                        RowLayout {
-                            width: parent.width
-                            spacing: Theme.spacingM
-                            StyledText {
-                                text: I18n.tr("Monospace Font")
-                                Layout.fillWidth: true
-                                color: Theme.surfaceText
+                            Row {
+                                width: parent.width
+                                spacing: Theme.spacingM
+
+                                DankIcon {
+                                    name: "data_usage"
+                                    size: Theme.iconSize
+                                    color: Theme.primary
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                Column {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: Theme.spacingXS
+                                    width: parent.width - parent.spacing - Theme.iconSize
+
+                                    StyledText {
+                                        text: I18n.tr("Max Tokens")
+                                        font.pixelSize: Theme.fontSizeLarge
+                                        font.weight: Font.Medium
+                                        color: Theme.surfaceText
+                                    }
+
+                                    StyledText {
+                                        text: I18n.tr("Maximum response length")
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.surfaceVariantText
+                                        wrapMode: Text.WordWrap
+                                        width: parent.width
+                                    }
+                                }
                             }
-                            DankToggle {
-                                checked: root.useMonospace
-                                onToggled: checked => save("useMonospace", checked)
+
+                            DankSlider {
+                                width: parent.width
+                                height: 32
+                                minimum: 128
+                                maximum: 32768
+                                step: 256
+                                value: root.maxTokens
+                                showValue: true
+                                unit: root.maxTokens.toString()
+                                onSliderValueChanged: newValue => save("maxTokens", newValue)
+                            }
+                        }
+                    }
+
+                    // Display Options Card
+                    Rectangle {
+                        width: parent.width
+                        height: displayContent.height + Theme.spacingL * 2
+                        radius: Theme.cornerRadius
+                        color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+                        border.width: 1
+
+                        Column {
+                            id: displayContent
+                            width: parent.width - Theme.spacingL * 2
+                            anchors.centerIn: parent
+                            spacing: Theme.spacingM
+
+                            // Header
+                            Row {
+                                width: parent.width
+                                spacing: Theme.spacingM
+
+                                DankIcon {
+                                    name: "code"
+                                    size: Theme.iconSize
+                                    color: Theme.primary
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                StyledText {
+                                    text: I18n.tr("Display Options")
+                                    font.pixelSize: Theme.fontSizeLarge
+                                    font.weight: Font.Medium
+                                    color: Theme.surfaceText
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            Item {
+                                width: parent.width
+                                height: Math.max(monoToggle.height, descColumn.height)
+
+                                Column {
+                                    id: descColumn
+                                    anchors.left: parent.left
+                                    anchors.right: monoToggle.left
+                                    anchors.rightMargin: Theme.spacingM
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: Theme.spacingS
+
+                                    StyledText {
+                                        text: I18n.tr("Monospace Font")
+                                        font.pixelSize: Theme.fontSizeMedium
+                                        color: Theme.surfaceText
+                                    }
+
+                                    StyledText {
+                                        text: I18n.tr("Use monospace font for AI replies (better for code)")
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.surfaceVariantText
+                                        wrapMode: Text.WordWrap
+                                        width: parent.width
+                                    }
+                                }
+
+                                DankToggle {
+                                    id: monoToggle
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    checked: root.useMonospace
+                                    onToggled: checked => save("useMonospace", checked)
+                                }
                             }
                         }
                     }
