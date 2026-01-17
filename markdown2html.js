@@ -29,7 +29,8 @@ function markdownToHtml(text, colors) {
         const escapedCode = trimmedCode.replace(/&/g, '&amp;')
                                        .replace(/</g, '&lt;')
                                        .replace(/>/g, '&gt;');
-        codeBlocks.push(`<pre style="background-color: ${c.codeBg}; padding: 10px;"><code>${escapedCode}</code></pre>`);
+        // Use pre with margin:0 to prevent extra spacing
+        codeBlocks.push(`<pre style="background-color: ${c.codeBg}; padding: 10px; margin: 0;"><code>${escapedCode}</code></pre>`);
         return `\x00CODEBLOCK${blockIndex++}\x00`;
     });
 
@@ -44,8 +45,44 @@ function markdownToHtml(text, colors) {
         return `\x00INLINECODE${inlineIndex++}\x00`;
     });
 
+    // Extract and protect tables BEFORE HTML entity escaping
+    html = html.replace(/^\|(.+)\|\s*\n\|[\s\-:|]+\|\s*\n((?:\|.+\|\s*\n?)+)/gm, function(match, headerRow, dataRows) {
+        // Parse header
+        const headers = headerRow.split('|').map(h => h.trim()).filter(h => h);
+
+        // Parse data rows
+        const rows = dataRows.trim().split('\n').map(row => {
+            return row.split('|').map(cell => cell.trim()).filter(cell => cell !== '');
+        });
+
+        // Build HTML table
+        let tableHtml = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">';
+
+        // Add header
+        tableHtml += '<tr>';
+        headers.forEach(header => {
+            tableHtml += `<th style="background-color: #30FFFFFF; padding: 5px;">${header}</th>`;
+        });
+        tableHtml += '</tr>';
+
+        // Add data rows
+        rows.forEach(row => {
+            tableHtml += '<tr>';
+            row.forEach(cell => {
+                tableHtml += `<td style="padding: 5px;">${cell}</td>`;
+            });
+            tableHtml += '</tr>';
+        });
+
+        tableHtml += '</table>';
+
+        // Protect table from further processing
+        protectedBlocks.push(tableHtml);
+        return `\x00PROTECTEDBLOCK${protectedIndex++}\x00`;
+    });
+
     // Now process everything else
-    // Escape HTML entities (but not in code blocks)
+    // Escape HTML entities (but not in code blocks or tables)
     html = html.replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
@@ -56,9 +93,9 @@ function markdownToHtml(text, colors) {
     html = html.replace(/^###### (.*?)$/gm, '<h6><font size="2">$1</font></h6><br/>');
     html = html.replace(/^##### (.*?)$/gm, '<h5><i><font size="3">$1</font></i></h5><br/>');
     html = html.replace(/^#### (.*?)$/gm, '<h4><font size="3">$1</font></h4><br/>');
-    html = html.replace(/^### (.*?)$/gm, '<h3><font size="4">$1</font></h3>');
-    html = html.replace(/^## (.*?)$/gm, '<h2><font size="5">$1</font></h2>');
-    html = html.replace(/^# (.*?)$/gm, '<h1><font size="6">$1</font></h1>');
+    html = html.replace(/^### (.*?)$/gm, '<h3><font size="4">$1</font></h3><br/>');
+    html = html.replace(/^## (.*?)$/gm, '<h2><font size="5">$1</font></h2><br/>');
+    html = html.replace(/^# (.*?)$/gm, '<h1><font size="6">$1</font></h1><br/>');
 
     // Horizontal Rule (3 or more dashes/stars/underscores on a line)
     // Must be before bold/italic/lists to prevent interference
@@ -74,6 +111,13 @@ function markdownToHtml(text, colors) {
 
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+    // Task Lists (must be before regular lists)
+    // Match - [ ] or - [x] or - [X]
+    html = html.replace(/^\s*[\*\-] \[([ xX])\] (.*?)$/gm, function(match, checked, content) {
+        const checkbox = checked.toLowerCase() === 'x' ? '☑' : '☐';
+        return `<li_task>${checkbox} ${content}</li_task>`;
+    });
 
     // Lists - Differentiate UL and OL
     // Replace * - with <li_ul>
@@ -95,6 +139,14 @@ function markdownToHtml(text, colors) {
     html = html.replace(/(<li_ol>[\s\S]*?<\/li_ol>\s*)+/g, function(match) {
         const content = match.replace(/<\/?li_ol>/g, (tag) => tag.replace('li_ol', 'li')).replace(/\n/g, '');
         const block = `<ol>${content}</ol>`;
+        protectedBlocks.push(block);
+        return `\x00PROTECTEDBLOCK${protectedIndex++}\x00\n`;
+    });
+
+    // Task Lists
+    html = html.replace(/(<li_task>[\s\S]*?<\/li_task>\s*)+/g, function(match) {
+        const content = match.replace(/<\/?li_task>/g, (tag) => tag.replace('li_task', 'li')).replace(/\n/g, '');
+        const block = `<ul style="list-style-type: none;">${content}</ul>`;
         protectedBlocks.push(block);
         return `\x00PROTECTEDBLOCK${protectedIndex++}\x00\n`;
     });
@@ -152,10 +204,12 @@ function markdownToHtml(text, colors) {
     html = html.replace(/<br\/>\s*<ul>/g, '<ul>');
     html = html.replace(/<br\/>\s*<ol>/g, '<ol>');
     html = html.replace(/<br\/>\s*<blockquote>/g, '<blockquote>');
+    html = html.replace(/<br\/>\s*<table>/g, '<table>');
     html = html.replace(/<br\/>\s*<h[1-6]>/g, '<h$1>');
 
-    // Remove <br/> tags immediately AFTER headers to prevent excessive gap
-    html = html.replace(/(<\/h[1-6]>)\s*<br\/>/g, '$1');
+    // Remove ONE <br/> after headers (we add explicit <br/> in header regex,
+    // but line break processing adds another from the newline, so remove the duplicate)
+    html = html.replace(/(<\/h[1-6]>)<br\/><br\/>/g, '$1<br/>');
 
     // Remove empty paragraphs
     html = html.replace(/<p>\s*<\/p>/g, '');
