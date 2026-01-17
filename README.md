@@ -17,15 +17,15 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
 
 ## Screenshots
 
-| Chat Interface | Settings Panel | Provider Options |
-|----------------|----------------|------------------|
-| ![Chat](screenshots/AI_ASSISTANT_SCREENSHOT_CURRENT_1.png) | ![Settings](screenshots/settings-panel.png) | ![Providers](screenshots/AI_ASSISTANT_SCREENSHOT_CURRENT_2.png) |
+| Chat Interface | Settings Panel |
+|----------------|----------------|
+| ![Chat](screenshots/AI_ASSISTANT_SCREENSHOT_CURRENT_1.png) | ![Settings](screenshots/settings-panel.png) |
 
 ## Requirements
 
-- **DankMaterialShell**: Version with plugin toggle support (PR pending)
+- **DankMaterialShell**: Version with plugin toggle support [(PR pending)](https://github.com/AvengeMedia/DankMaterialShell/pull/1407)
   - The core DMS plugin system needs `togglePlugin()` support
-  - See [DankMaterialShell PR](#) for details (link to be added)
+  - See [DankMaterialShell PR](https://github.com/AvengeMedia/DankMaterialShell/pull/1407) for details
 - **Qt/QML**: Qt 6.x with QtQuick support (provided by Quickshell)
 - **Dependencies**: `curl` for HTTP requests, `wl-copy` for clipboard operations
 
@@ -34,13 +34,15 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
 ### Via Plugin Directory
 
 1. Clone this repository to your DMS plugins directory:
+
    ```bash
    mkdir -p ~/.config/DankMaterialShell/plugins
    cd ~/.config/DankMaterialShell/plugins
-   git clone https://github.com/yourusername/dms-ai-assistant.git AIAssistant
+   git clone https://github.com/devnullvoid/dms-ai-assistant.git AIAssistant
    ```
 
 2. Restart DankMaterialShell:
+
    ```bash
    dms restart
    ```
@@ -50,53 +52,48 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
    - Find "AI Assistant" in the list
    - Toggle it to enabled
 
-### Manual Installation
-
-If you prefer manual installation:
-
-```bash
-# Create plugin directory
-mkdir -p ~/.config/DankMaterialShell/plugins/AIAssistant
-
-# Copy all plugin files
-cp *.qml *.js plugin.json ~/.config/DankMaterialShell/plugins/AIAssistant/
-
-# Restart DMS
-dms restart
-```
-
 ## Configuration
 
 ### Provider Setup
 
 The plugin supports multiple AI providers. Configure your preferred provider in the settings panel:
 
+> **Note**: Model names change frequently as providers release new versions. Check official provider documentation for the latest available models:
+> - [OpenAI Models](https://platform.openai.com/docs/models)
+> - [Anthropic Models](https://docs.anthropic.com/en/docs/about-claude/models)
+> - [Google Gemini Models](https://ai.google.dev/gemini-api/docs/models)
+
 #### OpenAI
+
 ```
 Provider: openai
 Base URL: https://api.openai.com
-Model: gpt-4o-mini (or gpt-4, gpt-3.5-turbo, etc.)
+Model: gpt-5-mini-2025-08-07 (or gpt-5.2-2025-12-11, gpt-5-nano-2025-08-07, etc.)
 API Key: Your OpenAI API key
 ```
 
 #### Anthropic (Claude)
+
 ```
 Provider: anthropic
 Base URL: https://api.anthropic.com
-Model: claude-3-5-sonnet-20241022 (or other Claude models)
+Model: claude-sonnet-4-5-20250929 (or claude-haiku-4-5-20251001, etc.)
 API Key: Your Anthropic API key
 ```
 
 #### Google Gemini
+
 ```
 Provider: gemini
 Base URL: https://generativelanguage.googleapis.com
-Model: gemini-2.0-flash-exp (or gemini-1.5-pro, etc.)
+Model: gemini-3-flash-preview (or gemini-3-pro-preview, etc.)
 API Key: Your Google API key
 ```
 
 #### Custom Provider
+
 For any OpenAI-compatible API (LocalAI, Ollama, LM Studio, etc.):
+
 ```
 Provider: custom
 Base URL: http://localhost:1234/v1 (your API endpoint)
@@ -139,13 +136,12 @@ API Key: Optional (leave empty for local APIs)
 The AI Assistant can be triggered via:
 
 1. **IPC Command**:
+
    ```bash
-   dms plugin toggle aiAssistant
+   dms ipc call plugins toggle aiAssistant
    ```
 
-2. **Keybind**: Configure in DMS Settings → Keybinds
-
-3. **DankBar Widget**: Add `aiAssistantButton` to your bar
+2. **Keybind**: Configure in your compositor configuration
 
 ### Chat Interface
 
@@ -165,14 +161,15 @@ The AI Assistant can be triggered via:
 All settings are stored in `~/.config/DankMaterialShell/plugin_settings.json` under the `aiAssistant` key.
 
 Example configuration:
+
 ```json
 {
   "aiAssistant": {
     "enabled": true,
     "provider": "custom",
     "baseUrl": "https://api.example.com/v1",
-    "model": "gpt-4",
-    "apiKeyEnvVar": "OPENAI_API_KEY",
+    "model": "glm-4.7",
+    "apiKeyEnvVar": "PROVIDER_API_KEY",
     "saveApiKey": false,
     "useMonospace": true,
     "temperature": 0.7,
@@ -193,23 +190,27 @@ Chat history is saved to `~/.local/state/DankMaterialShell/plugins/aiAssistant/s
 ## Troubleshooting
 
 ### Settings Not Persisting
+
 If settings don't persist after restart:
+
 - Check `~/.config/DankMaterialShell/plugin_settings.json` exists and is writable
 - Ensure DMS has write permissions to config directory
-- Recent fix: Hardcoded pluginId resolves initialization race condition
 
 ### API Errors
+
 - **401 Unauthorized**: Check API key is correct
 - **404 Not Found**: Verify base URL and model name
 - **Connection Failed**: Check internet connection and API endpoint
 - **Timeout**: Increase timeout setting or check network latency
 
 ### No Response Streaming
+
 - Some providers/models may not support streaming
 - Check browser console for error messages
 - Verify API endpoint supports SSE (Server-Sent Events)
 
 ### Markdown Not Rendering
+
 - Ensure code blocks use triple backticks with language specifier
 - Check if markdown2html.js is present in plugin directory
 
@@ -239,6 +240,7 @@ To add a new provider, edit `AIApiAdapters.js`:
 3. Implement response parsing in `parseStreamChunk()`
 
 Example:
+
 ```javascript
 PROVIDER_CONFIGS: {
     myProvider: {
@@ -263,7 +265,7 @@ Contributions are welcome! Please:
 
 ## License
 
-[Add your license here - MIT recommended for DMS plugins]
+MIT License - see [LICENSE](LICENSE) file for details
 
 ## Credits
 
@@ -275,6 +277,7 @@ Contributions are welcome! Please:
 ## Support
 
 For issues, questions, or feature requests:
+
 - Open an issue on GitHub
 - Join the DankMaterialShell community discussions
 - Check DMS documentation for plugin system details
@@ -284,8 +287,5 @@ For issues, questions, or feature requests:
 - [ ] Multi-turn conversation context management
 - [ ] Conversation branching/forking
 - [ ] Export conversations to markdown
-- [ ] Voice input support
-- [ ] Image attachment support (vision models)
 - [ ] Custom system prompts
 - [ ] Conversation templates/presets
-- [ ] RAG (Retrieval Augmented Generation) integration

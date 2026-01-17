@@ -52,7 +52,7 @@ Thank you for considering contributing to the AI Assistant plugin! This document
 
 1. Clone your fork:
    ```bash
-   git clone https://github.com/yourusername/dms-ai-assistant.git
+   git clone https://github.com/devnullvoid/dms-ai-assistant.git
    cd dms-ai-assistant
    ```
 
