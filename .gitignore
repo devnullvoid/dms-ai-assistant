@@ -11,6 +11,9 @@
 *~
 .DS_Store
 
+# Local notes
+.notes/
+
 # Build artifacts
 build/
 dist/
