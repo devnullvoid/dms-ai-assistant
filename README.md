@@ -2,8 +2,6 @@
 
 An integrated AI chat assistant plugin for DankMaterialShell with support for multiple AI providers, streaming responses, and markdown rendering.
 
-![Chat Interface](screenshots/AI_ASSISTANT_SCREENSHOT_CURRENT_1.png)
-
 ## Features
 
 - **Multiple AI Provider Support**: OpenAI, Anthropic, Google Gemini, and custom OpenAI-compatible APIs
