@@ -317,7 +317,7 @@ Item {
                                     width: parent.width - parent.spacing - Theme.iconSize
 
                                     StyledText {
-                                        text: I18n.tr("Temperature")
+                                        text: I18n.tr("Temperature: %1").arg(root.temperature.toFixed(1))
                                         font.pixelSize: Theme.fontSizeLarge
                                         font.weight: Font.Medium
                                         color: Theme.surfaceText
@@ -339,8 +339,7 @@ Item {
                                 minimum: 0
                                 maximum: 20
                                 value: Math.round(root.temperature * 10)
-                                showValue: true
-                                unit: (value / 10).toFixed(1)
+                                showValue: false
                                 onSliderValueChanged: newValue => save("temperature", newValue / 10)
                             }
                         }
@@ -378,7 +377,7 @@ Item {
                                     width: parent.width - parent.spacing - Theme.iconSize
 
                                     StyledText {
-                                        text: I18n.tr("Max Tokens")
+                                        text: I18n.tr("Max Tokens: %1").arg(root.maxTokens)
                                         font.pixelSize: Theme.fontSizeLarge
                                         font.weight: Font.Medium
                                         color: Theme.surfaceText
@@ -401,8 +400,7 @@ Item {
                                 maximum: 32768
                                 step: 256
                                 value: root.maxTokens
-                                showValue: true
-                                unit: root.maxTokens.toString()
+                                showValue: false
                                 onSliderValueChanged: newValue => save("maxTokens", newValue)
                             }
                         }
