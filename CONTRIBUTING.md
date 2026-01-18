@@ -61,15 +61,12 @@ Thank you for considering contributing to the AI Assistant plugin! This document
    ln -s $(pwd) ~/.config/DankMaterialShell/plugins/AIAssistant
    ```
 
-3. Make changes and restart DMS:
+3. Make changes and test by running DMS manually:
    ```bash
-   dms restart
+   QS_FORCE_STDERR_LOGGING=1 DMS_LOG_LEVEL=debug dms run
    ```
 
-4. Check logs:
-   ```bash
-   journalctl --user -u dms -f | grep -i assistant
-   ```
+4. Watch terminal output for plugin logs and errors
 
 ## Code Style Guide
 
@@ -187,7 +184,7 @@ AIAssistant/
 
 4. **Test thoroughly** with actual API
 
-5. **Update documentation** (README.md, INSTALL.md)
+5. **Update documentation** (README.md)
 
 ### Adding New Settings
 
@@ -227,10 +224,17 @@ AIAssistant/
 - [ ] Streaming responses display properly
 - [ ] Error handling works (bad API key, network issues)
 - [ ] Chat history saves and loads
-- [ ] Markdown renders correctly
+- [ ] Markdown renders correctly:
+  - [ ] Headers with proper spacing
+  - [ ] Bold, italic, strikethrough formatting
+  - [ ] Code blocks with language labels
+  - [ ] Tables with borders and cell alignment
+  - [ ] Task lists with checkboxes
+  - [ ] Links, blockquotes, horizontal rules
 - [ ] Keyboard shortcuts work
 - [ ] UI responsive and smooth
-- [ ] No console errors in logs
+- [ ] Settings sliders display correct values
+- [ ] No errors in terminal output (when running with `QS_FORCE_STDERR_LOGGING=1`)
 
 ### Test Different Scenarios
 
@@ -253,10 +257,10 @@ AIAssistant/
 
 ### Documentation Files:
 
-- **README.md**: Feature overview, usage guide
-- **INSTALL.md**: Installation instructions
+- **README.md**: Feature overview, installation, and usage guide
 - **CHANGELOG.md**: Version history
-- **CONTRIBUTING.md**: This file
+- **CONTRIBUTING.md**: This file (contributor guidelines)
+- **CLAUDE.md**: Development guidance for Claude Code
 
 ## Pull Request Process
 

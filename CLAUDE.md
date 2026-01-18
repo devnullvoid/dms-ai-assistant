@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AI Assistant plugin for DankMaterialShell - an integrated AI chat assistant with support for multiple AI providers (OpenAI, Anthropic, Google Gemini, custom OpenAI-compatible APIs), streaming responses, and markdown rendering.
 
-**Repository**: https://github.com/devnullvoid/dms-ai-assistant
+**Repository**: <https://github.com/devnullvoid/dms-ai-assistant>
 
 ## Development Commands
 
@@ -15,14 +15,10 @@ No build system - this is a QML/JavaScript plugin. Changes take effect after DMS
 ### Testing Plugin Changes
 
 ```bash
-# Restart DankMaterialShell to reload plugin
-dms restart
+# Run DMS manually in terminal with debug logging (recommended for development)
+QS_FORCE_STDERR_LOGGING=1 DMS_LOG_LEVEL=debug dms run
 
-# View plugin logs
-journalctl --user -u dms -f | grep -i assistant
-
-# Enable debug logging
-export DMS_LOG_LEVEL=debug
+# If running as systemd service, restart to reload plugin
 dms restart
 
 # Test plugin toggle
@@ -77,6 +73,7 @@ This plugin follows the DMS daemon+slideout pattern:
 **Session Management**: Chat history stored in `~/.local/state/DankMaterialShell/plugins/aiAssistant/session.json`. Invalidated when provider config changes (provider/baseUrl/model) to prevent mixing incompatible conversation contexts.
 
 **Streaming Response Parsing**:
+
 - Stream chunks arrive incrementally via StdioCollector
 - Buffered line-by-line parsing handles partial SSE frames
 - Provider-specific delta extraction (different JSON schemas)
@@ -85,7 +82,7 @@ This plugin follows the DMS daemon+slideout pattern:
 ### File Responsibilities
 
 - **AIApiAdapters.js**: Provider adapters, curl command building, request/response formatting
-- **markdown2html.js**: Markdown → HTML conversion with syntax highlighting
+- **markdown2html.js**: Markdown → HTML conversion with support for headers, bold, italic, strikethrough, code blocks with language labels, tables, task lists, links, blockquotes, and horizontal rules
 - **MessageBubble.qml**: Individual message rendering (user/assistant)
 - **MessageList.qml**: ScrollView container for message list
 - **AIAssistantSettings.qml**: Settings panel UI with PluginService persistence
@@ -123,6 +120,7 @@ This plugin follows the DMS daemon+slideout pattern:
 ### Message Context Building
 
 `buildPayload()` in AIAssistantService.qml builds conversation context by:
+
 - Walking backwards through messagesModel
 - Including last 20 turns (user+assistant pairs) with status="ok"
 - Alternating user/assistant to maintain valid conversation structure
@@ -131,6 +129,7 @@ This plugin follows the DMS daemon+slideout pattern:
 ### Session Invalidation
 
 Chat history is cleared when provider config changes because:
+
 - Different models have different context windows
 - Switching providers mid-conversation causes API errors
 - Provider-specific message formats may be incompatible
@@ -141,8 +140,13 @@ Config hash: `provider|baseUrl|model` stored in session.json and validated on lo
 
 ### Debugging Streaming Issues
 
-1. Enable debug logging: `export DMS_LOG_LEVEL=debug`
-2. Check AIAssistantService logs for:
+1. Run DMS manually with debug logging:
+
+   ```bash
+   QS_FORCE_STDERR_LOGGING=1 DMS_LOG_LEVEL=debug ./bin/dms run
+   ```
+
+2. Watch terminal output for AIAssistantService logs:
    - `request provider=` lines (verify URL/provider)
    - `request body(preview)=` lines (verify message format)
    - `response finalized chars=` lines (verify streaming completion)
@@ -170,7 +174,8 @@ Each provider requires different base URLs and API key environment variables. Se
 
 ### Required for DMS Core
 
-This plugin requires DMS core PR https://github.com/AvengeMedia/DankMaterialShell/pull/1407 which adds:
+This plugin requires DMS core PR <https://github.com/AvengeMedia/DankMaterialShell/pull/1407> which adds:
+
 - `togglePlugin(pluginId)` method to PluginService
 - `plugin toggle <pluginId>` IPC command
 - `pluginService` property injection for daemon/launcher plugins
@@ -199,11 +204,20 @@ dms plugin toggle aiAssistant
 ## Testing Checklist
 
 When making changes:
+
 - [ ] Settings persist across `dms restart`
 - [ ] Chat history survives restart (if same provider config)
 - [ ] All providers work (test with actual API keys)
 - [ ] Streaming displays incrementally (not all-at-once)
 - [ ] Error messages appear for invalid API keys
 - [ ] Config changes clear chat history appropriately
-- [ ] Markdown renders correctly (code blocks, lists, emphasis)
-- [ ] No QML warnings/errors in journalctl logs
+- [ ] Markdown renders correctly:
+  - [ ] Headers (h1-h6) with proper spacing
+  - [ ] Bold, italic, strikethrough formatting
+  - [ ] Code blocks with language labels
+  - [ ] Tables with borders and proper cell alignment
+  - [ ] Task lists with checkbox symbols
+  - [ ] Links, blockquotes, horizontal rules
+  - [ ] Consistent spacing between all elements
+- [ ] Settings panel sliders display correct values
+- [ ] No QML warnings/errors in terminal output (when running with `QS_FORCE_STDERR_LOGGING=1`)
