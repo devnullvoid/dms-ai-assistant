@@ -29,8 +29,8 @@ function markdownToHtml(text, colors) {
         const escapedCode = trimmedCode.replace(/&/g, '&amp;')
                                        .replace(/</g, '&lt;')
                                        .replace(/>/g, '&gt;');
-        // Use pre with margin:0 to prevent extra spacing
-        codeBlocks.push(`<pre style="background-color: ${c.codeBg}; padding: 10px; margin: 0;"><code>${escapedCode}</code></pre>`);
+        // Add consistent margins to code blocks
+        codeBlocks.push(`<pre style="background-color: ${c.codeBg}; padding: 10px; margin: 8px 0;"><code>${escapedCode}</code></pre>`);
         return `\x00CODEBLOCK${blockIndex++}\x00`;
     });
 
@@ -56,7 +56,7 @@ function markdownToHtml(text, colors) {
         });
 
         // Build HTML table
-        let tableHtml = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">';
+        let tableHtml = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; margin: 8px 0;">';
 
         // Add header
         tableHtml += '<tr>';
@@ -78,7 +78,7 @@ function markdownToHtml(text, colors) {
 
         // Protect table from further processing
         protectedBlocks.push(tableHtml);
-        return `\x00PROTECTEDBLOCK${protectedIndex++}\x00`;
+        return `\x00PROTECTEDBLOCK${protectedIndex++}\x00\n`;
     });
 
     // Now process everything else
@@ -89,17 +89,18 @@ function markdownToHtml(text, colors) {
 
     // Headers
     // Use <font size> to force sizing as QML CSS support for headers is flaky
-    // Use <br/> to enforce vertical spacing
-    html = html.replace(/^###### (.*?)$/gm, '<h6><font size="2">$1</font></h6><br/>');
-    html = html.replace(/^##### (.*?)$/gm, '<h5><i><font size="3">$1</font></i></h5><br/>');
-    html = html.replace(/^#### (.*?)$/gm, '<h4><font size="3">$1</font></h4><br/>');
-    html = html.replace(/^### (.*?)$/gm, '<h3><font size="4">$1</font></h3><br/>');
-    html = html.replace(/^## (.*?)$/gm, '<h2><font size="5">$1</font></h2><br/>');
-    html = html.replace(/^# (.*?)$/gm, '<h1><font size="6">$1</font></h1><br/>');
+    // Add margin-bottom for spacing instead of <br/> to avoid cleanup issues
+    // Use [\s\S]*? instead of .*? to handle any whitespace at end of line
+    html = html.replace(/^######\s+([\s\S]*?)$/gm, '<h6 style="margin-bottom: 8px;"><font size="2">$1</font></h6>');
+    html = html.replace(/^#####\s+([\s\S]*?)$/gm, '<h5 style="margin-bottom: 8px;"><i><font size="3">$1</font></i></h5>');
+    html = html.replace(/^####\s+([\s\S]*?)$/gm, '<h4 style="margin-bottom: 8px;"><font size="3">$1</font></h4>');
+    html = html.replace(/^###\s+([\s\S]*?)$/gm, '<h3 style="margin-bottom: 8px;"><font size="4">$1</font></h3>');
+    html = html.replace(/^##\s+([\s\S]*?)$/gm, '<h2 style="margin-bottom: 8px;"><font size="5">$1</font></h2>');
+    html = html.replace(/^#\s+([\s\S]*?)$/gm, '<h1 style="margin-bottom: 10px;"><font size="6">$1</font></h1>');
 
     // Horizontal Rule (3 or more dashes/stars/underscores on a line)
     // Must be before bold/italic/lists to prevent interference
-    html = html.replace(/^(\*{3,}|-{3,}|_{3,})$/gm, '<hr/>');
+    html = html.replace(/^(\*{3,}|-{3,}|_{3,})$/gm, '<hr style="margin: 12px 0;"/>');
 
     // Bold and italic (order matters!)
     html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<b><i>$1</i></b>');
@@ -130,7 +131,7 @@ function markdownToHtml(text, colors) {
     html = html.replace(/(<li_ul>[\s\S]*?<\/li_ul>\s*)+/g, function(match) {
         // Strip newlines inside the list block to avoid double spacing later
         const content = match.replace(/<\/?li_ul>/g, (tag) => tag.replace('li_ul', 'li')).replace(/\n/g, '');
-        const block = `<ul>${content}</ul>`;
+        const block = `<ul style="margin: 8px 0;">${content}</ul>`;
         protectedBlocks.push(block);
         return `\x00PROTECTEDBLOCK${protectedIndex++}\x00\n`;
     });
@@ -138,7 +139,7 @@ function markdownToHtml(text, colors) {
     // Ordered
     html = html.replace(/(<li_ol>[\s\S]*?<\/li_ol>\s*)+/g, function(match) {
         const content = match.replace(/<\/?li_ol>/g, (tag) => tag.replace('li_ol', 'li')).replace(/\n/g, '');
-        const block = `<ol>${content}</ol>`;
+        const block = `<ol style="margin: 8px 0;">${content}</ol>`;
         protectedBlocks.push(block);
         return `\x00PROTECTEDBLOCK${protectedIndex++}\x00\n`;
     });
@@ -146,7 +147,7 @@ function markdownToHtml(text, colors) {
     // Task Lists
     html = html.replace(/(<li_task>[\s\S]*?<\/li_task>\s*)+/g, function(match) {
         const content = match.replace(/<\/?li_task>/g, (tag) => tag.replace('li_task', 'li')).replace(/\n/g, '');
-        const block = `<ul style="list-style-type: none;">${content}</ul>`;
+        const block = `<ul style="list-style-type: none; margin: 8px 0;">${content}</ul>`;
         protectedBlocks.push(block);
         return `\x00PROTECTEDBLOCK${protectedIndex++}\x00\n`;
     });
@@ -162,7 +163,7 @@ function markdownToHtml(text, colors) {
                            .replace(/<\/bq_line>/g, '')
                            .trim();
         // Use blockquote tag (supported by QML for indentation) and add styling
-        const block = `<blockquote style="background-color: ${c.blockquoteBg}; border-left: 4px solid ${c.blockquoteBorder}; padding: 4px;"><font color="#a0a0a0"><i>${inner}</i></font></blockquote>`;
+        const block = `<blockquote style="background-color: ${c.blockquoteBg}; border-left: 4px solid ${c.blockquoteBorder}; padding: 4px; margin: 8px 0;"><font color="#a0a0a0"><i>${inner}</i></font></blockquote>`;
         protectedBlocks.push(block);
         return `\x00PROTECTEDBLOCK${protectedIndex++}\x00\n`;
     });
@@ -200,16 +201,12 @@ function markdownToHtml(text, colors) {
 
     // Clean up the final HTML
     // Remove <br/> tags immediately before block elements
-    html = html.replace(/<br\/>\s*<pre>/g, '<pre>');
-    html = html.replace(/<br\/>\s*<ul>/g, '<ul>');
-    html = html.replace(/<br\/>\s*<ol>/g, '<ol>');
-    html = html.replace(/<br\/>\s*<blockquote>/g, '<blockquote>');
-    html = html.replace(/<br\/>\s*<table>/g, '<table>');
-    html = html.replace(/<br\/>\s*<h[1-6]>/g, '<h$1>');
-
-    // Remove ONE <br/> after headers (we add explicit <br/> in header regex,
-    // but line break processing adds another from the newline, so remove the duplicate)
-    html = html.replace(/(<\/h[1-6]>)<br\/><br\/>/g, '$1<br/>');
+    html = html.replace(/<br\/>\s*(<pre>)/g, '$1');
+    html = html.replace(/<br\/>\s*(<ul[^>]*>)/g, '$1');
+    html = html.replace(/<br\/>\s*(<ol[^>]*>)/g, '$1');
+    html = html.replace(/<br\/>\s*(<blockquote[^>]*>)/g, '$1');
+    html = html.replace(/<br\/>\s*(<table[^>]*>)/g, '$1');
+    html = html.replace(/<br\/>\s*(<h[1-6][^>]*>)/g, '$1');
 
     // Remove empty paragraphs
     html = html.replace(/<p>\s*<\/p>/g, '');
