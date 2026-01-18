@@ -19,11 +19,11 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
 
 | Chat Interface | Settings Panel |
 |----------------|----------------|
-| ![Chat](screenshots/AI_ASSISTANT_SCREENSHOT_CURRENT_1.png) | ![Settings](screenshots/settings-panel.png) |
+| ![Chat](screenshots/AI_ASSISTANT_SCREENSHOT_CURRENT_1.png) | ![Settings](screenshots/AI_ASSISTANT_SCREENSHOT_CURRENT_5.png) |
 
 ## Requirements
 
-- **DankMaterialShell**: Version with plugin toggle support [(PR pending)](https://github.com/AvengeMedia/DankMaterialShell/pull/1407)
+- **DankMaterialShell**: Version with plugin toggle support (since [ad940b5](https://github.com/AvengeMedia/DankMaterialShell/commit/ad940b5884738bac30114515282c60769bcb1f09))
   - The core DMS plugin system needs `togglePlugin()` support
   - See [DankMaterialShell PR](https://github.com/AvengeMedia/DankMaterialShell/pull/1407) for details
 - **Qt/QML**: Qt 6.x with QtQuick support (provided by Quickshell)
@@ -59,6 +59,7 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
 The plugin supports multiple AI providers. Configure your preferred provider in the settings panel:
 
 > **Note**: Model names change frequently as providers release new versions. Check official provider documentation for the latest available models:
+>
 > - [OpenAI Models](https://platform.openai.com/docs/models)
 > - [Anthropic Models](https://docs.anthropic.com/en/docs/about-claude/models)
 > - [Google Gemini Models](https://ai.google.dev/gemini-api/docs/models)
@@ -143,6 +144,11 @@ The AI Assistant can be triggered via:
 
 2. **Keybind**: Configure in your compositor configuration
 
+  ```kdl
+  # Niri example:
+  Mod+A { spawn "dms" "ipc" "call" "plugins" "toggle" "aiAssistant"; }
+  ```
+
 ### Chat Interface
 
 - **Send Message**: Type your message and press `Ctrl+Enter` or click "Send"
@@ -151,7 +157,7 @@ The AI Assistant can be triggered via:
 - **Copy Response**: Use overflow menu → "Copy last reply"
 - **Retry**: If a request fails, use overflow menu → "Retry"
 
-### Keyboard Shortcuts
+### Keyboard Shortcuts (when focused on input)
 
 - `Ctrl+Enter`: Send message
 - `Escape`: Close assistant
@@ -203,11 +209,11 @@ If settings don't persist after restart:
 - **Connection Failed**: Check internet connection and API endpoint
 - **Timeout**: Increase timeout setting or check network latency
 
-### No Response Streaming
-
-- Some providers/models may not support streaming
-- Check browser console for error messages
-- Verify API endpoint supports SSE (Server-Sent Events)
+<!-- ### No Response Streaming -->
+<!---->
+<!-- - Some providers/models may not support streaming -->
+<!-- - Check browser console for error messages -->
+<!-- - Verify API endpoint supports SSE (Server-Sent Events) -->
 
 ### Markdown Not Rendering
 
@@ -269,9 +275,8 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Credits
 
-- **Author**: Jon Rogers
-- **DankMaterialShell**: [DankMaterialShell Project](https://github.com/dankamongmen/DankMaterialShell)
-- **Markdown Rendering**: Adapted from markdown-it.js
+- **Author**: Jon Rogers - *devnullvoid*
+- **DankMaterialShell**: [DankMaterialShell Project](https://github.com/AvengeMedia/DankMaterialShell)
 - **QML/Qt**: [Qt Project](https://www.qt.io/)
 
 ## Support
@@ -279,8 +284,8 @@ MIT License - see [LICENSE](LICENSE) file for details
 For issues, questions, or feature requests:
 
 - Open an issue on GitHub
-- Join the DankMaterialShell community discussions
-- Check DMS documentation for plugin system details
+<!-- - Join the DankMaterialShell community discussions -->
+<!-- - Check DMS documentation for plugin system details -->
 
 ## Roadmap
 

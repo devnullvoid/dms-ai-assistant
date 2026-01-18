@@ -1,6 +1,7 @@
 .pragma library
-// This exists only because I haven't been able to get linkColor to work with MarkdownText
-// May not be necessary if that's possible tbh.
+// Markdown to HTML converter for AI Assistant plugin
+// Supports headers, bold, italic, strikethrough, code blocks with language labels,
+// tables, task lists, links, blockquotes, and horizontal rules
 function markdownToHtml(text, colors) {
     if (!text) return "";
 
