@@ -110,6 +110,9 @@ function markdownToHtml(text, colors) {
     html = html.replace(/__(.*?)__/g, '<b>$1</b>');
     html = html.replace(/_(.*?)_/g, '<i>$1</i>');
 
+    // Strikethrough
+    html = html.replace(/~~(.*?)~~/g, '<s>$1</s>');
+
     // Links
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
