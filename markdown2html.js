@@ -31,7 +31,7 @@ function markdownToHtml(text, colors) {
 
         // Add language label if specified
         const languageLabel = lang && lang.trim()
-            ? `<div style="font-size: 9px; opacity: 0.6; margin-bottom: 4px;">${lang.trim()}</div>`
+            ? `<div style="font-size: 9px; opacity: 0.6; padding-bottom: 4px;">${lang.trim()}</div>`
             : '';
 
         // Add consistent margins to code blocks
