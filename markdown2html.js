@@ -21,7 +21,6 @@ function markdownToHtml(text, colors) {
 
     // First, extract and replace code blocks with placeholders
     // Regex matches ```[language]\n[content]```
-    // We ignore the language identifier for now.
     let html = text.replace(/```(?:([^\n]*)\n)?([\s\S]*?)```/g, (match, lang, code) => {
         // Trim leading and trailing blank lines only
         const trimmedCode = (code || "").replace(/^\n+|\n+$/g, '');
@@ -29,8 +28,14 @@ function markdownToHtml(text, colors) {
         const escapedCode = trimmedCode.replace(/&/g, '&amp;')
                                        .replace(/</g, '&lt;')
                                        .replace(/>/g, '&gt;');
+
+        // Add language label if specified
+        const languageLabel = lang && lang.trim()
+            ? `<div style="font-size: 9px; opacity: 0.6; margin-bottom: 4px;">${lang.trim()}</div>`
+            : '';
+
         // Add consistent margins to code blocks
-        codeBlocks.push(`<pre style="background-color: ${c.codeBg}; padding: 10px; margin: 8px 0;"><code>${escapedCode}</code></pre>`);
+        codeBlocks.push(`<div style="background-color: ${c.codeBg}; padding: 10px; margin: 8px 0;">${languageLabel}<pre style="margin: 0;"><code>${escapedCode}</code></pre></div>`);
         return `\x00CODEBLOCK${blockIndex++}\x00`;
     });
 
