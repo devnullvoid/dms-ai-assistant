@@ -67,7 +67,7 @@ The plugin supports multiple AI providers. Configure your preferred provider in 
 ```
 Provider: openai
 Base URL: https://api.openai.com
-Model: gpt-5-mini-2025-08-07 (or gpt-5.2-2025-12-11, gpt-5-nano-2025-08-07, etc.)
+Model: gpt-5.2 (or gpt-5.2-chat-latest, gpt-5.2-2025-12-11, gpt-5.2-codex, etc.)
 API Key: Your OpenAI API key
 ```
 
@@ -85,7 +85,7 @@ API Key: Your Anthropic API key
 ```
 Provider: gemini
 Base URL: https://generativelanguage.googleapis.com
-Model: gemini-3-flash-preview (or gemini-3-pro-preview, etc.)
+Model: gemini-2.5-flash (production) or gemini-3-flash-preview (experimental)
 API Key: Your Google API key
 ```
 

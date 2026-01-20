@@ -32,7 +32,7 @@ Item {
     function load() {
         provider = PluginService.loadPluginData(pluginId, "provider", "openai")
         baseUrl = PluginService.loadPluginData(pluginId, "baseUrl", "https://api.openai.com")
-        model = PluginService.loadPluginData(pluginId, "model", "gpt-4.1-mini")
+        model = PluginService.loadPluginData(pluginId, "model", "gpt-5.2")
         apiKey = PluginService.loadPluginData(pluginId, "apiKey", "")
         saveApiKey = PluginService.loadPluginData(pluginId, "saveApiKey", false)
         apiKeyEnvVar = PluginService.loadPluginData(pluginId, "apiKeyEnvVar", "")
@@ -174,7 +174,7 @@ Item {
                                 DankTextField {
                                     width: parent.width
                                     text: root.model
-                                    placeholderText: "gpt-4-mini"
+                                    placeholderText: "gpt-5.2"
                                     onEditingFinished: save("model", text.trim())
                                 }
                             }

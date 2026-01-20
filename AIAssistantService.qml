@@ -34,7 +34,7 @@ Item {
     // Settings
     property string provider: "openai"
     property string baseUrl: "https://api.openai.com"
-    property string model: "gpt-4.1-mini"
+    property string model: "gpt-5.2"
     property real temperature: 0.7
     property int maxTokens: 4096
     property int timeout: 30
@@ -53,7 +53,7 @@ Item {
     function loadSettings() {
         provider = String(PluginService.loadPluginData(pluginId, "provider", "openai")).trim()
         baseUrl = String(PluginService.loadPluginData(pluginId, "baseUrl", "https://api.openai.com")).trim()
-        model = String(PluginService.loadPluginData(pluginId, "model", "gpt-4.1-mini")).trim()
+        model = String(PluginService.loadPluginData(pluginId, "model", "gpt-5.2")).trim()
         temperature = PluginService.loadPluginData(pluginId, "temperature", 0.7)
         maxTokens = PluginService.loadPluginData(pluginId, "maxTokens", 4096)
         timeout = PluginService.loadPluginData(pluginId, "timeout", 30)
