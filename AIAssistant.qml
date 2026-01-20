@@ -15,6 +15,7 @@ Item {
 
     required property var aiService
     property bool showSettingsMenu: false
+    property bool showOverflowMenu: false
     readonly property real panelTransparency: SettingsData.popupTransparency
     readonly property bool hasApiKey: !!(aiService && aiService.resolveApiKey && aiService.resolveApiKey().length > 0)
     signal hideRequested
@@ -59,6 +60,32 @@ Item {
 
     function copyLastAssistant() {
         const text = getLastAssistantText();
+        if (!text)
+            return;
+        Quickshell.execDetached(["wl-copy", text]);
+    }
+
+    function getFullChatHistory() {
+        const svc = aiService;
+        if (!svc || !svc.messagesModel)
+            return "";
+        const model = svc.messagesModel;
+        let history = "";
+        for (let i = 0; i < model.count; i++) {
+            const m = model.get(i);
+            if (m.role === "user" || m.role === "assistant") {
+                const label = m.role === "user" ? "User" : "Assistant";
+                const content = m.content || "";
+                if (content.trim().length > 0) {
+                    history += label + ": " + content + "\n\n";
+                }
+            }
+        }
+        return history.trim();
+    }
+
+    function copyFullChat() {
+        const text = getFullChatHistory();
         if (!text)
             return;
         Quickshell.execDetached(["wl-copy", text]);
@@ -116,43 +143,7 @@ Item {
                 id: overflowButton
                 iconName: "more_vert"
                 tooltipText: I18n.tr("More")
-                onClicked: overflowMenu.popup(overflowButton, -overflowMenu.width + overflowButton.width, overflowButton.height + Theme.spacingXS)
-            }
-
-            Menu {
-                id: overflowMenu
-                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
-
-                background: Rectangle {
-                    color: Theme.withAlpha(Theme.surfaceContainer, Theme.popupTransparency)
-                    radius: Theme.cornerRadius
-                    border.width: 0
-                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
-                }
-
-                MenuItem {
-                    text: showSettingsMenu ? I18n.tr("Hide settings") : I18n.tr("Settings")
-                    onTriggered: showSettingsMenu = !showSettingsMenu
-                }
-
-                MenuSeparator {}
-
-                MenuItem {
-                    text: I18n.tr("Copy last reply")
-                    enabled: getLastAssistantText().length > 0
-                    onTriggered: copyLastAssistant()
-                }
-
-                MenuItem {
-                    text: I18n.tr("Retry")
-                    enabled: hasAssistantError() && !(aiService.isStreaming ?? false)
-                    onTriggered: aiService.retryLast()
-                }
-
-                MenuItem {
-                    text: I18n.tr("Close")
-                    onTriggered: root.hideRequested()
-                }
+                onClicked: showOverflowMenu = !showOverflowMenu
             }
         }
 
@@ -304,5 +295,98 @@ Item {
         onCloseRequested: showSettingsMenu = false
         pluginId: "aiAssistant"
         aiService: aiService
+    }
+
+    // Custom overflow menu
+    MouseArea {
+        anchors.fill: parent
+        visible: showOverflowMenu
+        onClicked: showOverflowMenu = false
+
+        Rectangle {
+            id: overflowMenuPopup
+            x: parent.width - width - Theme.spacingM
+            y: Theme.spacingXL + Theme.spacingM
+            width: 200
+            height: menuColumn.height + Theme.spacingM * 2
+            radius: Theme.cornerRadius
+            color: Theme.withAlpha(Theme.surfaceContainer, Theme.popupTransparency)
+            border.width: 1
+            border.color: Theme.outlineMedium
+
+            Column {
+                id: menuColumn
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Theme.spacingM
+                spacing: Theme.spacingS
+
+                DankButton {
+                    text: showSettingsMenu ? I18n.tr("Hide settings") : I18n.tr("Settings")
+                    iconName: "settings"
+                    width: parent.width
+                    onClicked: {
+                        showSettingsMenu = !showSettingsMenu
+                        showOverflowMenu = false
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: Theme.outlineMedium
+                }
+
+                DankButton {
+                    text: I18n.tr("Copy last reply")
+                    iconName: "content_copy"
+                    width: parent.width
+                    enabled: getLastAssistantText().length > 0
+                    onClicked: {
+                        copyLastAssistant()
+                        showOverflowMenu = false
+                    }
+                }
+
+                DankButton {
+                    text: I18n.tr("Copy entire chat")
+                    iconName: "content_copy"
+                    width: parent.width
+                    enabled: (aiService.messageCount ?? 0) > 0
+                    onClicked: {
+                        copyFullChat()
+                        showOverflowMenu = false
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: Theme.outlineMedium
+                }
+
+                DankButton {
+                    text: I18n.tr("Retry")
+                    iconName: "refresh"
+                    width: parent.width
+                    enabled: hasAssistantError() && !(aiService.isStreaming ?? false)
+                    onClicked: {
+                        aiService.retryLast()
+                        showOverflowMenu = false
+                    }
+                }
+
+                DankButton {
+                    text: I18n.tr("Close")
+                    iconName: "close"
+                    width: parent.width
+                    onClicked: {
+                        showOverflowMenu = false
+                        root.hideRequested()
+                    }
+                }
+            }
+        }
     }
 }
