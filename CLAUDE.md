@@ -61,6 +61,8 @@ This plugin follows the DMS daemon+slideout pattern:
    - Chat interface (per-screen instance)
    - Consumes AIAssistantService as data source
    - No direct API calls - delegates to service
+   - Custom overflow menu implementation (native QML, not QtQuick.Controls)
+   - Copy functionality: last reply or entire chat history
 
 ### Key Architectural Patterns
 
@@ -86,6 +88,7 @@ This plugin follows the DMS daemon+slideout pattern:
 - **MessageBubble.qml**: Individual message rendering (user/assistant)
 - **MessageList.qml**: ScrollView container for message list
 - **AIAssistantSettings.qml**: Settings panel UI with PluginService persistence
+- **AIAssistant.qml**: Main UI with custom overflow menu (settings, copy last reply, copy entire chat, retry, close)
 
 ## Provider-Specific Details
 
@@ -102,11 +105,19 @@ This plugin follows the DMS daemon+slideout pattern:
    - Scoped: `DMS_<PROVIDER>_API_KEY`
    - Common: `<PROVIDER>_API_KEY`
 
-### Current Providers
+### Current Providers (2026 Models)
 
 - **OpenAI**: `/v1/chat/completions` endpoint, `Authorization: Bearer` header
-- **Anthropic**: `/v1/messages` endpoint, `x-api-key` header, `anthropic-version` header required
+  - Default model: `gpt-5.2`
+  - Current models: `gpt-5.2`, `gpt-5.2-chat-latest`, `gpt-5.2-codex`
+
+- **Anthropic**: `/v1/messages` endpoint, `x-api-key` header, `anthropic-version: 2023-06-01` (still current as of 2026)
+  - Current models: `claude-opus-4-5-20251101`, `claude-sonnet-4-5-20250929`, `claude-haiku-4-5-20251001`
+
 - **Gemini**: `/v1beta/models/{model}:streamGenerateContent?key=` endpoint, API key in URL
+  - Default model: `gemini-2.5-flash`
+  - Current models: `gemini-2.5-flash` (production), `gemini-3-flash-preview` (experimental)
+
 - **Custom**: Treated as OpenAI-compatible (same request format)
 
 ## Critical Implementation Details
@@ -160,7 +171,18 @@ Each provider requires different base URLs and API key environment variables. Se
 
 - MessageBubble.qml: Individual message appearance
 - MessageList.qml: Message list container and scrolling
-- AIAssistant.qml: Overall chat interface layout
+- AIAssistant.qml: Overall chat interface layout, overflow menu with custom dropdown
+
+### UI Features
+
+**Overflow Menu** (More button):
+- Settings toggle
+- Copy last reply (clipboard via wl-copy)
+- Copy entire chat (formatted as "User: ... Assistant: ...")
+- Retry (on error)
+- Close
+
+**Implementation note**: Uses custom dropdown (MouseArea + Rectangle + Column) instead of QtQuick.Controls Menu which is incompatible with Quickshell.
 
 ### Adding Settings
 
@@ -200,6 +222,7 @@ dms plugin toggle aiAssistant
 - HTTP via curl subprocess, not XMLHttpRequest
 - Settings stored in DMS global plugin_settings.json (not per-plugin file)
 - Session data separate from settings (different persistence requirements)
+- **QtQuick.Controls compatibility**: Some Qt components (Menu, Popup) don't work in Quickshell - use custom implementations with MouseArea + Rectangle instead
 
 ## Testing Checklist
 
@@ -220,4 +243,6 @@ When making changes:
   - [ ] Links, blockquotes, horizontal rules
   - [ ] Consistent spacing between all elements
 - [ ] Settings panel sliders display correct values
+- [ ] Overflow menu displays and dismisses correctly
+- [ ] Copy functions work (last reply and entire chat)
 - [ ] No QML warnings/errors in terminal output (when running with `QS_FORCE_STDERR_LOGGING=1`)
