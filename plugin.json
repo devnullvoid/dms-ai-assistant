@@ -1,12 +1,18 @@
 {
-    "id": "aiAssistant",
-    "name": "AI Assistant",
-    "description": "Integrated AI chat assistant with markdown support",
-    "version": "1.1.0",
-    "author": "DankMaterialShell",
-    "type": "daemon",
-    "capabilities": ["slideout", "ai"],
-    "component": "./AIAssistantDaemon.qml",
-    "icon": "smart_toy",
-    "permissions": ["settings_read", "settings_write"]
+  "id": "aiAssistant",
+  "name": "AI Assistant",
+  "description": "Integrated AI chat assistant with markdown support",
+  "version": "1.1.0",
+  "author": "devnullvoid",
+  "type": "daemon",
+  "capabilities": [
+    "slideout",
+    "ai"
+  ],
+  "component": "./AIAssistantDaemon.qml",
+  "icon": "smart_toy",
+  "permissions": [
+    "settings_read",
+    "settings_write"
+  ]
 }
