@@ -21,9 +21,7 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
 
 ## Requirements
 
-- **DankMaterialShell**: Version with plugin toggle support (since [ad940b5](https://github.com/AvengeMedia/DankMaterialShell/commit/ad940b5884738bac30114515282c60769bcb1f09))
-  - The core DMS plugin system needs `togglePlugin()` support
-  - See [DankMaterialShell PR](https://github.com/AvengeMedia/DankMaterialShell/pull/1407) for details
+- **DankMaterialShell**: Latest version with plugin toggle support
 - **Qt/QML**: Qt 6.x with QtQuick support (provided by Quickshell)
 - **Dependencies**: `curl` for HTTP requests, `wl-copy` for clipboard operations
 
@@ -147,6 +145,11 @@ The AI Assistant can be triggered via:
   Mod+A { spawn "dms" "ipc" "call" "plugins" "toggle" "aiAssistant"; }
   ```
 
+  ```conf
+  # Hyprland example:
+  bind = SUPER, A, exec, dms ipc call plugins toggle aiAssistant
+  ```
+
 ### Chat Interface
 
 - **Send Message**: Type your message and press `Ctrl+Enter` or click "Send"
@@ -206,12 +209,6 @@ If settings don't persist after restart:
 - **404 Not Found**: Verify base URL and model name
 - **Connection Failed**: Check internet connection and API endpoint
 - **Timeout**: Increase timeout setting or check network latency
-
-<!-- ### No Response Streaming -->
-<!---->
-<!-- - Some providers/models may not support streaming -->
-<!-- - Check browser console for error messages -->
-<!-- - Verify API endpoint supports SSE (Server-Sent Events) -->
 
 ### Markdown Not Rendering
 
@@ -282,8 +279,6 @@ MIT License - see [LICENSE](LICENSE) file for details
 For issues, questions, or feature requests:
 
 - Open an issue on GitHub
-<!-- - Join the DankMaterialShell community discussions -->
-<!-- - Check DMS documentation for plugin system details -->
 
 ## Roadmap
 
