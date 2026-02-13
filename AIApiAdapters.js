@@ -29,6 +29,7 @@ function buildCurlCommand(provider, payload, apiKey) {
     const timeout = payload.timeout || 30;
     const baseCmd = [
         "curl",
+        "-N",
         "-sS",
         "--no-buffer",
         "--show-error",
@@ -36,7 +37,6 @@ function buildCurlCommand(provider, payload, apiKey) {
         "5",
         "--max-time",
         String(timeout),
-        "--compressed",
         "-w",
         "\\nDMS_STATUS:%{http_code}\\n"
     ];
