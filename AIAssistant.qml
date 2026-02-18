@@ -291,6 +291,9 @@ Item {
     Loader {
         id: settingsPanelLoader
         anchors.fill: parent
+        // Recreate settings panel each time it is opened.
+        // Keeping a hidden instance mounted causes DankDropdown to stop handling
+        // interaction after the first open/close cycle (see issue #2).
         active: showSettingsMenu
         sourceComponent: settingsPanelComponent
     }
