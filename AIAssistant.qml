@@ -288,13 +288,23 @@ Item {
         }
     }
 
-    AIAssistantSettings {
-        id: settingsPanel
+    Loader {
+        id: settingsPanelLoader
         anchors.fill: parent
-        isVisible: showSettingsMenu
-        onCloseRequested: showSettingsMenu = false
-        pluginId: "aiAssistant"
-        aiService: aiService
+        active: showSettingsMenu
+        sourceComponent: settingsPanelComponent
+    }
+
+    Component {
+        id: settingsPanelComponent
+
+        AIAssistantSettings {
+            anchors.fill: parent
+            isVisible: true
+            onCloseRequested: showSettingsMenu = false
+            pluginId: "aiAssistant"
+            aiService: root.aiService
+        }
     }
 
     // Custom overflow menu
