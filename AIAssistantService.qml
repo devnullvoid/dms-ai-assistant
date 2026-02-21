@@ -21,6 +21,8 @@ Item {
     readonly property string sessionPath: baseDir + "/session.json"
     property bool sessionLoaded: false
     property string providerConfigHash: ""
+    property var sessionsByConfig: ({})
+    property bool suppressConfigChange: false
     property int maxStoredMessages: 50
 
     property ListModel messagesModel: ListModel {}
@@ -149,6 +151,7 @@ Item {
     }
 
     function loadSettings() {
+        suppressConfigChange = true
         const selectedProvider = String(PluginService.loadPluginData(pluginId, "provider", "openai")).trim() || "openai"
         const providerId = ["openai", "anthropic", "gemini", "custom"].includes(selectedProvider) ? selectedProvider : "openai"
         const rawProviders = PluginService.loadPluginData(pluginId, "providers", null)
@@ -183,6 +186,11 @@ Item {
         saveApiKey = active.saveApiKey
         apiKeyEnvVar = active.apiKeyEnvVar
         useMonospace = PluginService.loadPluginData(pluginId, "useMonospace", false)
+        suppressConfigChange = false
+
+        const currentHash = computeConfigHash();
+        if (providerConfigHash !== currentHash)
+            switchConfigHistory(currentHash)
     }
 
     Connections {
@@ -213,26 +221,25 @@ Item {
         onLoaded: {
             try {
                 const data = JSON.parse(text());
-                const storedHash = data.providerConfigHash || "";
-                const currentHash = computeConfigHash();
-
-                if (storedHash && storedHash !== currentHash) {
-                    providerConfigHash = currentHash;
-                    clearHistory(false);
+                if (data.version >= 2 && data.sessions && typeof data.sessions === "object") {
+                    sessionsByConfig = data.sessions;
                 } else {
-                    providerConfigHash = storedHash || currentHash;
-                    loadMessages(data.messages || []);
+                    const legacyHash = data.providerConfigHash || computeConfigHash();
+                    sessionsByConfig = {};
+                    sessionsByConfig[legacyHash] = Array.isArray(data.messages) ? data.messages : [];
                 }
             } catch (e) {
-                providerConfigHash = computeConfigHash();
-                clearHistory(false);
+                sessionsByConfig = {};
             }
+
             sessionLoaded = true;
+            switchConfigHistory(computeConfigHash());
         }
 
         onLoadFailed: {
-            providerConfigHash = computeConfigHash();
+            sessionsByConfig = {};
             sessionLoaded = true;
+            switchConfigHistory(computeConfigHash());
         }
     }
 
@@ -240,11 +247,48 @@ Item {
         return provider + "|" + baseUrl + "|" + model;
     }
 
+    function persistCurrentMessagesForHash(configHash) {
+        if (!configHash)
+            return;
+        const msgs = [];
+        for (let i = 0; i < messagesModel.count; i++) {
+            const m = messagesModel.get(i);
+            if ((m.role === "user" || m.role === "assistant") && m.status !== "streaming") {
+                msgs.push({
+                    role: m.role,
+                    content: m.content,
+                    timestamp: m.timestamp,
+                    id: m.id,
+                    status: m.status
+                });
+            }
+        }
+        const capped = msgs.length > maxStoredMessages ? msgs.slice(msgs.length - maxStoredMessages) : msgs;
+        const nextSessions = Object.assign({}, sessionsByConfig || {});
+        nextSessions[configHash] = capped;
+        sessionsByConfig = nextSessions;
+    }
+
+    function switchConfigHistory(nextHash) {
+        if (!nextHash)
+            return;
+
+        const previousHash = providerConfigHash;
+        if (previousHash && previousHash !== nextHash)
+            persistCurrentMessagesForHash(previousHash)
+
+        providerConfigHash = nextHash;
+        const nextMessages = (sessionsByConfig && Array.isArray(sessionsByConfig[nextHash])) ? sessionsByConfig[nextHash] : [];
+        loadMessages(nextMessages);
+        saveSession();
+    }
+
     function handleConfigChanged() {
+        if (suppressConfigChange)
+            return;
         const current = computeConfigHash();
         if (providerConfigHash && providerConfigHash !== current) {
-            providerConfigHash = current;
-            clearHistory(true);
+            switchConfigHistory(current)
         } else {
             providerConfigHash = current;
             saveSession();
@@ -269,24 +313,16 @@ Item {
     }
 
     function saveSession() {
-        const msgs = [];
-        for (let i = 0; i < messagesModel.count; i++) {
-            const m = messagesModel.get(i);
-            if ((m.role === "user" || m.role === "assistant") && m.status !== "streaming") {
-                msgs.push({
-                    role: m.role,
-                    content: m.content,
-                    timestamp: m.timestamp,
-                    id: m.id,
-                    status: m.status
-                });
-            }
-        }
-        const capped = msgs.length > maxStoredMessages ? msgs.slice(msgs.length - maxStoredMessages) : msgs;
+        const currentHash = providerConfigHash || computeConfigHash();
+        persistCurrentMessagesForHash(currentHash)
+
+        if (!sessionLoaded || !sessionFile.path)
+            return;
+
         const data = {
-            version: 1,
-            providerConfigHash: providerConfigHash || computeConfigHash(),
-            messages: capped
+            version: 2,
+            providerConfigHash: currentHash,
+            sessions: sessionsByConfig || {}
         };
         sessionFile.setText(JSON.stringify(data, null, 2));
     }

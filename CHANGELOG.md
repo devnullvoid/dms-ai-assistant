@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Requests using stale custom endpoint/model settings after switching provider from the dropdown
+- Chat history being cleared when switching providers (history is now retained per provider configuration)
+- Gemini requests failing with HTTP 400 due to unsupported `stream` field in request body
 
 ## [1.1.3] - 2026-02-21
 

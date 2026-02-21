@@ -104,8 +104,7 @@ function geminiRequest(payload, apiKey) {
         generationConfig: {
             temperature: payload.temperature || 0.7,
             maxOutputTokens: payload.max_tokens || 1024
-        },
-        stream: true
+        }
     };
     return { url, headers, body: JSON.stringify(body) };
 }
