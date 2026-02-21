@@ -589,10 +589,13 @@ Item {
                 if (data.stop_reason)
                     finalizeStream(activeStreamId);
             } else if (provider === "gemini") {
-                const parts = data.candidates?.[0]?.content?.parts || [];
-                parts.forEach(p => {
-                    if (p.text)
-                        updateStreamContent(activeStreamId, p.text);
+                const chunks = Array.isArray(data) ? data : [data];
+                chunks.forEach(chunk => {
+                    const parts = chunk.candidates?.[0]?.content?.parts || [];
+                    parts.forEach(p => {
+                        if (p.text)
+                            updateStreamContent(activeStreamId, p.text);
+                    });
                 });
             } else { // openai
                 const deltas = data.choices?.[0]?.delta?.content;
@@ -672,11 +675,14 @@ Item {
             }
 
             if (provider === "gemini") {
-                const parts = data.candidates?.[0]?.content?.parts || [];
+                const chunks = Array.isArray(data) ? data : [data];
                 let out = "";
-                parts.forEach(p => {
-                    if (p && p.text)
-                        out += p.text;
+                chunks.forEach(chunk => {
+                    const parts = chunk.candidates?.[0]?.content?.parts || [];
+                    parts.forEach(p => {
+                        if (p && p.text)
+                            out += p.text;
+                    });
                 });
                 return out;
             }

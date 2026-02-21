@@ -93,7 +93,7 @@ function anthropicRequest(payload, apiKey) {
 function geminiRequest(payload, apiKey) {
     const url = (payload.baseUrl || "https://generativelanguage.googleapis.com")
         + "/v1beta/models/" + (payload.model || "gemini-2.5-flash") + ":streamGenerateContent"
-        + "?key=" + apiKey;
+        + "?key=" + apiKey + "&alt=sse";
     const headers = ["-H", "Content-Type: application/json"];
     const contents = payload.messages.map(m => ({
         role: m.role === "user" ? "user" : "model",
