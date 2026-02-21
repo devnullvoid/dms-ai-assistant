@@ -12,6 +12,14 @@ Item {
 
     Component.onCompleted: console.info("[AIAssistant UI Plugin] ready, service:", aiService)
     onAiServiceChanged: console.info("[AIAssistant UI Plugin] service changed:", aiService)
+    onVisibleChanged: {
+        if (!visible) {
+            // Force menu teardown when the panel is hidden/toggled off.
+            // This avoids stale popup/dropdown internals when reopened.
+            showSettingsMenu = false
+            showOverflowMenu = false
+        }
+    }
 
     required property var aiService
     property bool showSettingsMenu: false
