@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Per-provider settings profiles via new `providers` persisted object, so switching providers loads each provider's own endpoint/model/token settings
+
+### Changed
+- Provider switch in settings now immediately swaps to that provider's saved profile instead of reusing the previous provider's configuration
+
+### Fixed
+- Requests using stale custom endpoint/model settings after switching provider from the dropdown
+
 ## [1.1.3] - 2026-02-21
 
 ### Fixed
