@@ -167,6 +167,7 @@ Item {
                 id: list
                 anchors.fill: parent
                 messages: aiService.messagesModel
+                aiService: root.aiService
                 useMonospace: aiService.useMonospace
             }
 
@@ -246,13 +247,19 @@ Item {
                         topPadding: 0
                         bottomPadding: 0
 
-                        Keys.onReleased: event => {
+                        Keys.onPressed: event => {
                             if (event.key === Qt.Key_Escape) {
                                 hideRequested();
                                 event.accepted = true;
-                            } else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_Return) {
-                                sendCurrentMessage();
-                                event.accepted = true;
+                            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                                if (event.modifiers & Qt.ShiftModifier) {
+                                    // Shift+Enter: insert newline (default behavior)
+                                    event.accepted = false;
+                                } else {
+                                    // Enter alone: send message
+                                    event.accepted = true;
+                                    sendCurrentMessage();
+                                }
                             }
                         }
                     }
@@ -273,23 +280,26 @@ Item {
             Column {
                 id: actionButtons
                 spacing: Theme.spacingS
-                width: 100
+                width: 40
 
-                DankButton {
-                    text: I18n.tr("Send")
+                DankActionButton {
                     iconName: "send"
-                    enabled: composer.text && composer.text.trim().length > 0
-                    width: parent.width
+                    tooltipText: I18n.tr("Send")
+                    enabled: composer.text && composer.text.trim().length > 0 && !aiService.isStreaming
+                    visible: !aiService.isStreaming
+                    buttonSize: 40
+                    iconSize: 20
                     onClicked: sendCurrentMessage()
                 }
 
-                DankButton {
-                    text: I18n.tr("Stop")
+                DankActionButton {
                     iconName: "stop"
+                    tooltipText: I18n.tr("Stop")
                     enabled: aiService.isStreaming
-                    backgroundColor: Theme.error
-                    textColor: Theme.errorText
-                    width: parent.width
+                    visible: aiService.isStreaming
+                    buttonSize: 40
+                    iconSize: 20
+                    iconColor: Theme.error
                     onClicked: aiService.cancel()
                 }
             }

@@ -582,6 +582,9 @@ Item {
     function parseProviderDelta(jsonText) {
         try {
             const data = JSON.parse(jsonText);
+            if (debugEnabled && provider === "gemini") {
+                console.log("[AIAssistantService] gemini chunk:", JSON.stringify(data).slice(0, 200));
+            }
             if (provider === "anthropic") {
                 const delta = data.delta?.text || "";
                 if (delta)
@@ -591,11 +594,24 @@ Item {
             } else if (provider === "gemini") {
                 const chunks = Array.isArray(data) ? data : [data];
                 chunks.forEach(chunk => {
-                    const parts = chunk.candidates?.[0]?.content?.parts || [];
+                    const candidate = chunk.candidates?.[0];
+                    const parts = candidate?.content?.parts || [];
+                    let hasContent = false;
                     parts.forEach(p => {
-                        if (p.text)
+                        if (p.text) {
+                            hasContent = true;
                             updateStreamContent(activeStreamId, p.text);
+                        }
                     });
+                    // Finalize on finishReason OR if we get empty text with metadata (like thoughtSignature)
+                    const finishReason = candidate?.finishReason;
+                    if (finishReason && finishReason !== "FINISH_REASON_UNSPECIFIED") {
+                        finalizeStream(activeStreamId);
+                    }
+                    // Also finalize if this chunk has usageMetadata (indicates end of stream)
+                    if (chunk.usageMetadata && !hasContent) {
+                        finalizeStream(activeStreamId);
+                    }
                 });
             } else { // openai
                 const deltas = data.choices?.[0]?.delta?.content;

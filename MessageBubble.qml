@@ -12,6 +12,9 @@ Item {
     property string text: ""
     property string status: "ok" // ok|streaming|error
     property bool useMonospace: false
+    property bool showRegenerate: false
+    property bool containsMouse: hoverArea.containsMouse
+    signal regenerateRequested()
 
     readonly property bool isUser: role === "user"
     readonly property real bubbleMaxWidth: isUser ? Math.max(240, Math.floor(width * 0.82)) : width
@@ -32,6 +35,13 @@ Item {
 
     width: parent ? parent.width : implicitWidth
     implicitHeight: bubble.implicitHeight
+
+    MouseArea {
+        id: hoverArea
+        anchors.fill: bubble
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+    }
 
     Rectangle {
         id: bubble
@@ -64,7 +74,7 @@ Item {
                 width: parent.width
                 spacing: Theme.spacingXS
 
-                // assistant: [icon][chip][spacer][copy]
+                // assistant: [icon][chip][spacer][regenerate][copy]
                 // user:      [spacer][chip][icon]
                 Item { Layout.fillWidth: root.isUser }
 
@@ -101,6 +111,21 @@ Item {
                 }
 
                 Item { Layout.fillWidth: !root.isUser }
+
+                DankActionButton {
+                    visible: !root.isUser && root.status === "ok"
+                    iconName: "refresh"
+                    buttonSize: 24
+                    iconSize: 14
+                    backgroundColor: "transparent"
+                    iconColor: Theme.surfaceVariantText
+                    tooltipText: I18n.tr("Regenerate")
+                    opacity: root.showRegenerate ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                    onClicked: {
+                        root.regenerateRequested();
+                    }
+                }
 
                 DankActionButton {
                     visible: !root.isUser && root.status === "ok"
