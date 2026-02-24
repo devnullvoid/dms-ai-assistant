@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini requests failing with HTTP 400 due to unsupported `stream` field in request body
 - Gemini responses rendering empty in UI by enabling SSE mode and handling array-shaped streamed/final payloads
 
+## [1.2.0] - 2026-02-24
+
+### Added
+- Enter key now sends messages (Shift+Enter inserts newline) - issue #6
+- Regenerate button on assistant messages (appears on hover) - issue #6
+
+### Changed
+- Send/Stop buttons are now icon-only (40x40) with tooltips - issue #6
+- Improved Gemini streaming finalization to handle `usageMetadata` end-of-stream signal
+
 ## [1.1.3] - 2026-02-21
 
 ### Fixed
