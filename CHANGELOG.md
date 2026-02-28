@@ -5,13 +5,19 @@ All notable changes to the AI Assistant plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.0] - 2026-02-28
 
 ### Added
 - Per-provider settings profiles via new `providers` persisted object, so switching providers loads each provider's own endpoint/model/token settings
+- New chat confirmation dialog when history exists
+- Privacy note based on the AI service provider (remote vs. local)
+- Temporary hint system for better user feedback
+- Message regeneration for specific assistant messages
+- Redesigned composer with improved layout and icon buttons
 
 ### Changed
 - Provider switch in settings now immediately swaps to that provider's saved profile instead of reusing the previous provider's configuration
+- Composer layout optimized for better space usage and readability
 
 ### Fixed
 - Requests using stale custom endpoint/model settings after switching provider from the dropdown
