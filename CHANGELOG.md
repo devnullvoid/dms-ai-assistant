@@ -5,6 +5,17 @@ All notable changes to the AI Assistant plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-02-28
+
+### Added
+- Copy button for code blocks to easily copy snippets to clipboard (fixes #5)
+- Visual feedback hint ("Copied to clipboard") when copying text or code
+
+### Fixed
+- Code block layout issues including extra spacing, horizontal overflow, and background gaps
+- Settings panel sizing issues by providing implicit dimensions (fixes #3)
+- Bug where long code lines could break the message bubble structure
+
 ## [1.3.0] - 2026-02-28
 
 ### Added
