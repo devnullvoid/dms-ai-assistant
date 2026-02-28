@@ -9,12 +9,11 @@ import qs.Widgets
 Item {
     id: root
     property string role: "assistant"
+    property string messageId: ""
     property string text: ""
     property string status: "ok" // ok|streaming|error
     property bool useMonospace: false
-    property bool showRegenerate: false
-    property bool containsMouse: hoverArea.containsMouse
-    signal regenerateRequested()
+    signal regenerateRequested(string messageId)
 
     readonly property bool isUser: role === "user"
     readonly property real bubbleMaxWidth: isUser ? Math.max(240, Math.floor(width * 0.82)) : width
@@ -35,13 +34,6 @@ Item {
 
     width: parent ? parent.width : implicitWidth
     implicitHeight: bubble.implicitHeight
-
-    MouseArea {
-        id: hoverArea
-        anchors.fill: bubble
-        hoverEnabled: true
-        acceptedButtons: Qt.NoButton
-    }
 
     Rectangle {
         id: bubble
@@ -120,10 +112,8 @@ Item {
                     backgroundColor: "transparent"
                     iconColor: Theme.surfaceVariantText
                     tooltipText: I18n.tr("Regenerate")
-                    opacity: root.showRegenerate ? 1 : 0
-                    Behavior on opacity { NumberAnimation { duration: 150 } }
                     onClicked: {
-                        root.regenerateRequested();
+                        root.regenerateRequested(root.messageId);
                     }
                 }
 
@@ -135,6 +125,7 @@ Item {
                     backgroundColor: "transparent"
                     iconColor: Theme.surfaceVariantText
                     tooltipText: I18n.tr("Copy")
+                    enabled: (root.text || "").trim().length > 0
                     onClicked: {
                         Quickshell.execDetached(["wl-copy", root.text]);
                     }

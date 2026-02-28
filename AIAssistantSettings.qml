@@ -186,6 +186,12 @@ Item {
         useMonospace = PluginService.loadPluginData(pluginId, "useMonospace", false)
     }
 
+    function focusApiKeyField() {
+        if (apiKeyField) {
+            apiKeyField.forceActiveFocus()
+        }
+    }
+
     Connections {
         target: PluginService
         function onPluginDataChanged(pId) {
@@ -373,6 +379,7 @@ Item {
                                     color: Theme.surfaceVariantText
                                 }
                                 DankTextField {
+                                    id: apiKeyField
                                     width: parent.width
                                     text: root.saveApiKey ? root.apiKey : aiService.sessionApiKey
                                     echoMode: TextInput.Password

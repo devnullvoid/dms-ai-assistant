@@ -30,6 +30,7 @@ Item {
     property bool isStreaming: false
     property bool isOnline: false
     property string activeStreamId: ""
+    property real streamStartedAtMs: 0
     property string lastUserText: ""
     property int lastHttpStatus: 0
 
@@ -331,6 +332,7 @@ Item {
         messagesModel.clear();
         isStreaming = false;
         activeStreamId = "";
+        streamStartedAtMs = 0;
         isOnline = false;
         lastUserText = "";
         if (saveNow)
@@ -396,6 +398,42 @@ Item {
         startStreaming(text, false);
     }
 
+    function regenerateFromMessageId(messageId) {
+        if (!messageId || (isStreaming && chatFetcher.running))
+            return;
+
+        const assistantIdx = findIndexById(messageId);
+        if (assistantIdx < 0) {
+            retryLast();
+            return;
+        }
+
+        const target = messagesModel.get(assistantIdx);
+        if (!target || target.role !== "assistant") {
+            retryLast();
+            return;
+        }
+
+        let userText = "";
+        for (let i = assistantIdx - 1; i >= 0; i--) {
+            const m = messagesModel.get(i);
+            if (m && m.role === "user" && m.status === "ok" && (m.content || "").trim().length > 0) {
+                userText = m.content;
+                break;
+            }
+        }
+        if (!userText) {
+            retryLast();
+            return;
+        }
+
+        for (let i = messagesModel.count - 1; i >= assistantIdx; i--) {
+            messagesModel.remove(i, 1);
+        }
+        lastUserText = userText;
+        startStreaming(userText, false);
+    }
+
     function startStreaming(text, addUser) {
         const now = Date.now();
         const streamId = "assistant-" + now;
@@ -408,6 +446,7 @@ Item {
         messagesModel.append({ role: "assistant", content: "", timestamp: now + 1, id: streamId, status: "streaming" });
         activeStreamId = streamId;
         isStreaming = true;
+        streamStartedAtMs = now;
         lastHttpStatus = 0;
 
         const payload = buildPayload(text);
@@ -448,6 +487,7 @@ Item {
         }
         isStreaming = false;
         activeStreamId = "";
+        streamStartedAtMs = 0;
         saveSession();
     }
 
@@ -483,6 +523,7 @@ Item {
         }
         isStreaming = false;
         activeStreamId = "";
+        streamStartedAtMs = 0;
         isOnline = true;
         if (debugEnabled) {
             const text = getMessageContentById(streamId);
