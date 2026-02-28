@@ -14,6 +14,7 @@ Item {
     property string status: "ok" // ok|streaming|error
     property bool useMonospace: false
     signal regenerateRequested(string messageId)
+    signal copySuccess()
 
     readonly property bool isUser: role === "user"
     readonly property real bubbleMaxWidth: isUser ? Math.max(240, Math.floor(width * 0.82)) : width
@@ -128,6 +129,7 @@ Item {
                     enabled: (root.text || "").trim().length > 0
                     onClicked: {
                         Quickshell.execDetached(["wl-copy", root.text]);
+                        root.copySuccess();
                     }
                 }
             }
@@ -147,6 +149,7 @@ Item {
             }
 
             TextArea {
+                id: messageText
                 text: root.useMarkdownRendering ? root.renderedHtml : root.text
                 textFormat: root.useMarkdownRendering ? Text.RichText : Text.PlainText
                 wrapMode: Text.Wrap
@@ -163,11 +166,28 @@ Item {
                 leftPadding: 4
                 rightPadding: 4
 
-                onLinkActivated: link => {
-                    Qt.openUrlExternally(link);
+                hoverEnabled: true
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.NoButton
+                    cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.IBeamCursor
                 }
 
-                hoverEnabled: true
+                onLinkActivated: link => {
+                    if (link.startsWith("copy://")) {
+                        const b64 = link.substring(7);
+                        try {
+                            const code = Qt.atob(b64);
+                            Quickshell.execDetached(["wl-copy", code]);
+                            root.copySuccess();
+                        } catch (e) {
+                            console.error("[MessageBubble] Failed to copy code:", e);
+                        }
+                    } else {
+                        Qt.openUrlExternally(link);
+                    }
+                }
             }
 
             Rectangle {

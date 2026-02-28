@@ -10,6 +10,9 @@ import qs.Widgets
 Item {
     id: root
 
+    implicitWidth: 480
+    implicitHeight: 640
+
     Component.onCompleted: console.info("[AIAssistant UI Plugin] ready, service:", aiService)
     onAiServiceChanged: console.info("[AIAssistant UI Plugin] service changed:", aiService)
     onVisibleChanged: {
@@ -234,6 +237,7 @@ Item {
                 messages: aiService.messagesModel
                 aiService: root.aiService
                 useMonospace: aiService.useMonospace
+                onCopySuccess: showTemporaryHint(I18n.tr("Copied to clipboard."))
             }
 
             Column {

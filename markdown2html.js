@@ -30,13 +30,29 @@ function markdownToHtml(text, colors) {
                                        .replace(/</g, '&lt;')
                                        .replace(/>/g, '&gt;');
 
-        // Add language label if specified
-        const languageLabel = lang && lang.trim()
-            ? `<div style="font-size: 9px; opacity: 0.6; padding-bottom: 4px;">${lang.trim()}</div>`
-            : '';
+        // Add language label if specified, and a copy button
+        const labelText = lang && lang.trim() ? lang.trim() : "";
+        const b64Code = Qt.btoa(trimmedCode);
 
-        // Add consistent margins to code blocks
-        codeBlocks.push(`<div style="background-color: ${c.codeBg}; padding: 10px; margin: 8px 0;">${languageLabel}<pre style="margin: 0;"><code>${escapedCode}</code></pre></div>`);
+        // Build the code block as a single table to ensure the background color is flush.
+        // We use table-layout: fixed to prevent long lines from expanding the table width
+        // beyond its container, which would cut off the [Copy] button.
+        const codeBlockHtml =
+            `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${c.codeBg}; margin: 8px 0; table-layout: fixed;">` +
+                `<tr><td style="padding: 4px 10px 0 10px;">` +
+                    `<table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0; table-layout: fixed;">` +
+                        `<tr>` +
+                            `<td align="left" style="padding: 0;"><font size="1" color="#808080">${labelText}</font></td>` +
+                            `<td align="right" style="padding: 0; width: 35px;"><a href="copy://${b64Code}" style="text-decoration: none;"><font size="1">[Copy]</font></a></td>` +
+                        `</tr>` +
+                    `</table>` +
+                `</td></tr>` +
+                `<tr><td style="padding: 0 10px 10px 10px;">` +
+                    `<pre style="margin: 0; padding: 0; white-space: pre-wrap;"><code>${escapedCode}</code></pre>` +
+                `</td></tr>` +
+            `</table>`;
+
+        codeBlocks.push(codeBlockHtml);
         return `\x00CODEBLOCK${blockIndex++}\x00`;
     });
 
@@ -180,21 +196,7 @@ function markdownToHtml(text, colors) {
     // Detect plain URLs and wrap them in anchor tags (but not inside existing <a> or markdown links)
     html = html.replace(/(^|[^"'>])((https?|file):\/\/[^\s<]+)/g, '$1<a href="$2">$2</a>');
 
-    // Restore code blocks and inline code BEFORE line break processing
-    // (We want newlines in code blocks to become <br> or handled by pre?)
-    // Actually, QML Text <pre> handles \n correctly?
-    // If we let \n become <br>, it might be double spacing in pre.
-    // Let's protect code blocks too if we suspect issues, but previously it was fine.
-    // Actually, let's keep code blocks as they were, handled before line breaks.
-    html = html.replace(/\x00CODEBLOCK(\d+)\x00/g, (match, index) => {
-        return codeBlocks[parseInt(index)];
-    });
-
-    html = html.replace(/\x00INLINECODE(\d+)\x00/g, (match, index) => {
-        return inlineCode[parseInt(index)];
-    });
-
-    // Line breaks (after code blocks are restored)
+    // Line breaks
     html = html.replace(/\n\n/g, '</p><p>');
     html = html.replace(/\n/g, '<br/>');
 
@@ -203,13 +205,23 @@ function markdownToHtml(text, colors) {
         html = '<p>' + html + '</p>';
     }
 
-    // Restore PROTECTED blocks (Lists, Blockquotes) AFTER line break processing
+    // Restore code blocks, inline code and protected blocks (Lists, Blockquotes)
+    // after line break processing to prevent internal newlines from being converted to <br/> or </p><p>
+    html = html.replace(/\x00CODEBLOCK(\d+)\x00/g, (match, index) => {
+        return codeBlocks[parseInt(index)];
+    });
+
+    html = html.replace(/\x00INLINECODE(\d+)\x00/g, (match, index) => {
+        return inlineCode[parseInt(index)];
+    });
+
     html = html.replace(/\x00PROTECTEDBLOCK(\d+)\x00/g, (match, index) => {
         return protectedBlocks[parseInt(index)];
     });
 
     // Clean up the final HTML
     // Remove <br/> tags immediately before block elements
+    html = html.replace(/<br\/>\s*(<table[^>]*>)/g, '$1');
     html = html.replace(/<br\/>\s*(<pre>)/g, '$1');
     html = html.replace(/<br\/>\s*(<ul[^>]*>)/g, '$1');
     html = html.replace(/<br\/>\s*(<ol[^>]*>)/g, '$1');

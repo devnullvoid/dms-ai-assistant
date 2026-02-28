@@ -7,6 +7,10 @@ import qs.Services
 
 Item {
     id: root
+
+    implicitWidth: 480
+    implicitHeight: 600
+
     property bool isVisible: false
     signal closeRequested
 

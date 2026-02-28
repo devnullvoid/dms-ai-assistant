@@ -9,6 +9,7 @@ Item {
     property var aiService: null
     property bool stickToBottom: true
     property bool useMonospace: false
+    signal copySuccess()
 
     Component.onCompleted: console.log("[MessageList] ready")
 
@@ -60,6 +61,8 @@ Item {
                 text: model.content
                 status: model.status
                 useMonospace: root.useMonospace
+
+                onCopySuccess: root.copySuccess()
 
                 Component.onCompleted: {
                     console.log("[MessageList] add", role, text ? text.slice(0, 40) : "")
