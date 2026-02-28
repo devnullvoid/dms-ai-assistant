@@ -55,23 +55,21 @@ Item {
                 id: bubble
                 width: listView.width
                 y: wrapper.topGap
+                messageId: model.id
                 role: model.role
                 text: model.content
                 status: model.status
                 useMonospace: root.useMonospace
-                showRegenerate: bubble.containsMouse && model.role === "assistant" && model.status === "ok"
 
                 Component.onCompleted: {
                     console.log("[MessageList] add", role, text ? text.slice(0, 40) : "")
                 }
 
-                onRegenerateRequested: {
-                    console.log("[MessageList] regenerate requested for message", index);
-                    // Find the user message that preceded this assistant message
-                    if (root.messages && index > 0) {
-                        // Regenerate the last assistant response by retrying
-                        aiService.retryLast();
-                    }
+                onRegenerateRequested: messageId => {
+                    if (!aiService || !aiService.regenerateFromMessageId)
+                        return;
+                    console.log("[MessageList] regenerate requested for message id", messageId);
+                    aiService.regenerateFromMessageId(messageId);
                 }
             }
         }
