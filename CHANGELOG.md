@@ -5,6 +5,13 @@ All notable changes to the AI Assistant plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-02-28
+
+### Fixed
+- Robust markdown placeholder system to prevent rendering issues with inline code and other elements
+- Inline code styling refined to use CSS padding instead of non-breaking spaces
+- Improved restoration logic for protected markdown blocks to ensure perfect HTML output
+
 ## [1.3.1] - 2026-02-28
 
 ### Added
