@@ -93,13 +93,95 @@ function markdownToHtml(text, colors) {
     const listHandler = (tag) => (match) => {
         const content = match.replace(new RegExp(`</?${tag}>`, 'g'), (t) => t.replace(tag, 'li')).replace(/\n/g, '');
         const style = tag === 'li_task' ? 'style="list-style-type: none; margin: 8px 0;"' : 'style="margin: 8px 0;"';
-        const wrapper = tag === 'li_ol' ? 'ol' : 'ul';
-        return createPlaceholder(`<${wrapper} ${style}>${content}</${wrapper}>`) + "\n";
+        return createPlaceholder(`<ul ${style}>${content}</ul>`) + "\n";
     };
 
     html = html.replace(/(<li_ul>[\s\S]*?<\/li_ul>\s*)+/g, listHandler('li_ul'));
-    html = html.replace(/(<li_ol>[\s\S]*?<\/li_ol>\s*)+/g, listHandler('li_ol'));
     html = html.replace(/(<li_task>[\s\S]*?<\/li_task>\s*)+/g, listHandler('li_task'));
+
+    // Ordered lists: use <ol start="N"> to continue numbering across block-level
+    // placeholders (code blocks, tables) that may appear between list items.
+    {
+        const LI_OL_RE = /^<li_ol>([\s\S]*?)<\/li_ol>$/;
+        const PH_RE = /^MSAPH\d+X$/;
+        const lines = html.split('\n');
+        const out = [];
+        let i = 0;
+
+        // Returns true if a <li_ol> line exists in lines[fromIdx..], skipping
+        // blanks, block placeholders, and blockquote lines (all of which may
+        // be inter-list content).
+        function hasMoreListItems(fromIdx) {
+            for (let j = fromIdx; j < lines.length; j++) {
+                const t = lines[j].trim();
+                if (LI_OL_RE.test(t)) return true;
+                if (t === '' || PH_RE.test(t) || t.startsWith('&gt;')) continue;
+                return false; // non-list, non-blank, non-placeholder, non-blockquote
+            }
+            return false;
+        }
+
+        while (i < lines.length) {
+            const trimmed = lines[i].trim();
+
+            if (!LI_OL_RE.test(trimmed)) {
+                out.push(lines[i]);
+                i++;
+                continue;
+            }
+
+            // Collect the ordered list context.  Items may be separated by blank
+            // lines and block-level placeholders; group into segments so we can
+            // emit each run of items as <ol start="N"> to preserve numbering.
+            const segments = [];
+            let currentItems = [];
+            let pendingBlocks = [];
+
+            while (i < lines.length) {
+                const cur = lines[i].trim();
+
+                if (LI_OL_RE.test(cur)) {
+                    if (pendingBlocks.length > 0) {
+                        segments.push({ items: currentItems, blocks: pendingBlocks });
+                        currentItems = [];
+                        pendingBlocks = [];
+                    }
+                    currentItems.push('<li>' + cur.match(LI_OL_RE)[1] + '</li>');
+                    i++;
+                } else if (cur === '' || PH_RE.test(cur) || cur.startsWith('&gt;')) {
+                    if (hasMoreListItems(i + 1)) {
+                        // Block placeholders and blockquote lines are kept as
+                        // inter-segment content.  cur is already trimmed, so
+                        // &gt; lines will match the blockquote regex later.
+                        if (cur !== '') pendingBlocks.push(cur);
+                        i++; // blank lines are silently consumed
+                    } else {
+                        break; // block/blank/blockquote is after the list
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            if (currentItems.length > 0) {
+                segments.push({ items: currentItems, blocks: [] });
+            }
+
+            let olCounter = 1;
+            for (let s = 0; s < segments.length; s++) {
+                const seg = segments[s];
+                const olHtml = '<ol start="' + olCounter + '" style="margin: 8px 0;">' +
+                               seg.items.join('') + '</ol>';
+                out.push(createPlaceholder(olHtml));
+                olCounter += seg.items.length;
+                for (let b = 0; b < seg.blocks.length; b++) {
+                    out.push(seg.blocks[b]);
+                }
+            }
+        }
+
+        html = out.join('\n');
+    }
 
     html = html.replace(/^&gt; (.*?)$/gm, '<bq_line>$1</bq_line>');
     html = html.replace(/(<bq_line>[\s\S]*?<\/bq_line>\s*)+/g, function(match) {
