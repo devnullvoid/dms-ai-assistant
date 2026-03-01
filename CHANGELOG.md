@@ -5,6 +5,14 @@ All notable changes to the AI Assistant plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-03-01
+
+### Fixed
+- Ordered list numbering no longer resets to 1 when a code block, table, or blockquote appears between list items; uses `<ol start="N">` segments to preserve numbering
+- Blockquotes inside ordered list items now render correctly instead of appearing as literal `&gt;` text
+- Code blocks inside list items no longer display with the list's indentation; common leading whitespace is stripped before rendering
+- Chat view now automatically scrolls to the bottom when a response finishes streaming and markdown is rendered
+
 ## [1.3.2] - 2026-02-28
 
 ### Fixed

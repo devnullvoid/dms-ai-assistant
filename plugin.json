@@ -2,7 +2,7 @@
   "id": "aiAssistant",
   "name": "AI Assistant",
   "description": "Integrated AI chat assistant with markdown support",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "author": "devnullvoid",
   "type": "daemon",
   "capabilities": [
