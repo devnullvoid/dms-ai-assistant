@@ -23,11 +23,25 @@ function markdownToHtml(text, colors) {
         return id;
     }
 
+    // Strip the minimum common leading whitespace from all non-empty lines.
+    // This dedents code blocks that are indented as part of a list item.
+    function dedent(str) {
+        const lines = str.split('\n');
+        let minIndent = Infinity;
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].trim() === '') continue;
+            const indent = lines[i].match(/^(\s*)/)[1].length;
+            if (indent < minIndent) minIndent = indent;
+        }
+        if (minIndent === 0 || minIndent === Infinity) return str;
+        return lines.map(function(l) { return l.slice(minIndent); }).join('\n');
+    }
+
     let html = text;
 
     // 1. Protect code blocks (must be first)
     html = html.replace(/```(?:([^\n]*)\n)?([\s\S]*?)```/g, (match, lang, code) => {
-        const trimmedCode = (code || "").replace(/^\n+|\n+$/g, '');
+        const trimmedCode = dedent((code || "").replace(/^\n+|\n+$/g, ''));
         const escapedCode = trimmedCode.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const labelText = lang && lang.trim() ? lang.trim() : "";
         const b64Code = Qt.btoa(trimmedCode);
