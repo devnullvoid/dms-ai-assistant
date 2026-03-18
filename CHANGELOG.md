@@ -5,6 +5,11 @@ All notable changes to the AI Assistant plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Inception** provider for [Inception Platform](https://platform.inceptionlabs.ai/) (OpenAI-compatible streaming API; default base `https://api.inceptionlabs.ai/v1`, model `mercury-2`). API keys: `INCEPTION_API_KEY` / `DMS_INCEPTION_API_KEY`
+
 ## [1.4.0] - 2026-03-01
 
 ### Changed
