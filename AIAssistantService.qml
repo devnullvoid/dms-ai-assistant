@@ -56,6 +56,17 @@ Item {
 
     function defaultsForProvider(id) {
         switch (id) {
+        case "inception":
+            return {
+                baseUrl: "https://api.inceptionlabs.ai/v1",
+                model: "mercury-2",
+                apiKey: "",
+                saveApiKey: false,
+                apiKeyEnvVar: "",
+                temperature: 0.7,
+                maxTokens: 4096,
+                timeout: 30
+            };
         case "anthropic":
             return {
                 baseUrl: "https://api.anthropic.com",
@@ -123,13 +134,14 @@ Item {
             openai: normalizedProfile("openai", null),
             anthropic: normalizedProfile("anthropic", null),
             gemini: normalizedProfile("gemini", null),
+            inception: normalizedProfile("inception", null),
             custom: normalizedProfile("custom", null)
         };
 
         if (!rawProviders || typeof rawProviders !== "object")
             return base;
 
-        const ids = ["openai", "anthropic", "gemini", "custom"];
+        const ids = ["openai", "anthropic", "gemini", "inception", "custom"];
         for (let i = 0; i < ids.length; i++) {
             const id = ids[i];
             if (rawProviders[id] && typeof rawProviders[id] === "object") {
@@ -154,7 +166,7 @@ Item {
     function loadSettings() {
         suppressConfigChange = true
         const selectedProvider = String(PluginService.loadPluginData(pluginId, "provider", "openai")).trim() || "openai"
-        const providerId = ["openai", "anthropic", "gemini", "custom"].includes(selectedProvider) ? selectedProvider : "openai"
+        const providerId = ["openai", "anthropic", "gemini", "inception", "custom"].includes(selectedProvider) ? selectedProvider : "openai"
         const rawProviders = PluginService.loadPluginData(pluginId, "providers", null)
         let nextProviders = mergedProviders(rawProviders)
 
@@ -348,6 +360,8 @@ Item {
                 return Quickshell.env("DMS_ANTHROPIC_API_KEY") || "";
             case "gemini":
                 return Quickshell.env("DMS_GEMINI_API_KEY") || "";
+            case "inception":
+                return Quickshell.env("DMS_INCEPTION_API_KEY") || "";
             case "custom":
                 return Quickshell.env("DMS_CUSTOM_API_KEY") || "";
             default:
@@ -361,6 +375,8 @@ Item {
                 return Quickshell.env("ANTHROPIC_API_KEY") || "";
             case "gemini":
                 return Quickshell.env("GEMINI_API_KEY") || "";
+            case "inception":
+                return Quickshell.env("INCEPTION_API_KEY") || "";
             case "custom":
                 return "";
             default:
