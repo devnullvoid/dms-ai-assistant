@@ -47,6 +47,9 @@ Item {
     property string sessionApiKey: "" // In-memory key
     property string apiKeyEnvVar: ""
     property bool useMonospace: false
+    property string inceptionReasoningEffort: "medium"
+    property bool inceptionReasoningSummary: true
+    property bool inceptionReasoningSummaryWait: false
 
     readonly property bool debugEnabled: (Quickshell.env("DMS_LOG_LEVEL") || "").toLowerCase() === "debug"
 
@@ -63,9 +66,12 @@ Item {
                 apiKey: "",
                 saveApiKey: false,
                 apiKeyEnvVar: "",
-                temperature: 0.7,
-                maxTokens: 4096,
-                timeout: 30
+                temperature: 0.75,
+                maxTokens: 8192,
+                timeout: 30,
+                inceptionReasoningEffort: "medium",
+                inceptionReasoningSummary: true,
+                inceptionReasoningSummaryWait: false
             };
         case "anthropic":
             return {
@@ -117,7 +123,7 @@ Item {
     function normalizedProfile(id, raw) {
         const defaults = defaultsForProvider(id);
         const p = raw || {};
-        return {
+        const profile = {
             baseUrl: String(p.baseUrl || defaults.baseUrl).trim(),
             model: String(p.model || defaults.model).trim(),
             apiKey: String(p.apiKey || "").trim(),
@@ -127,6 +133,14 @@ Item {
             maxTokens: (typeof p.maxTokens === "number") ? p.maxTokens : defaults.maxTokens,
             timeout: (typeof p.timeout === "number") ? p.timeout : defaults.timeout
         };
+        if (id === "inception") {
+            const efforts = ["instant", "low", "medium", "high"];
+            let eff = String(p.inceptionReasoningEffort || defaults.inceptionReasoningEffort || "medium").toLowerCase();
+            profile.inceptionReasoningEffort = efforts.indexOf(eff) >= 0 ? eff : "medium";
+            profile.inceptionReasoningSummary = (typeof p.inceptionReasoningSummary === "boolean") ? p.inceptionReasoningSummary : (defaults.inceptionReasoningSummary !== false);
+            profile.inceptionReasoningSummaryWait = !!p.inceptionReasoningSummaryWait;
+        }
+        return profile;
     }
 
     function mergedProviders(rawProviders) {
@@ -198,6 +212,11 @@ Item {
         apiKey = active.apiKey
         saveApiKey = active.saveApiKey
         apiKeyEnvVar = active.apiKeyEnvVar
+        if (provider === "inception") {
+            inceptionReasoningEffort = active.inceptionReasoningEffort || "medium";
+            inceptionReasoningSummary = active.inceptionReasoningSummary !== false;
+            inceptionReasoningSummaryWait = !!active.inceptionReasoningSummaryWait;
+        }
         useMonospace = PluginService.loadPluginData(pluginId, "useMonospace", false)
         suppressConfigChange = false
 
@@ -579,7 +598,7 @@ Item {
         }
 
         msgs.push({ role: "user", content: latestText });
-        return {
+        const payload = {
             provider: provider,
             baseUrl: baseUrl,
             model: model,
@@ -589,6 +608,12 @@ Item {
             stream: true,
             timeout: timeout
         };
+        if (provider === "inception") {
+            payload.inceptionReasoningEffort = inceptionReasoningEffort;
+            payload.inceptionReasoningSummary = inceptionReasoningSummary;
+            payload.inceptionReasoningSummaryWait = inceptionReasoningSummaryWait;
+        }
+        return payload;
     }
 
     function buildCurlCommand(payload) {

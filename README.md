@@ -95,6 +95,7 @@ Provider: inception
 Base URL: https://api.inceptionlabs.ai/v1
 Model: mercury-2
 API Key: Your Inception API key
+Mercury 2 options (see [API parameters](https://docs.inceptionlabs.ai/get-started/api-parameters)): reasoning effort, reasoning summary, wait-for-reasoning-summary. Temperature is clamped to **0.5–1.0**; default max_tokens **8192** for new Inception profiles.
 ```
 
 #### Custom Provider

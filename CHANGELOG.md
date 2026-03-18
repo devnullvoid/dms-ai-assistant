@@ -8,21 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Inception** provider for [Inception Platform](https://platform.inceptionlabs.ai/) (OpenAI-compatible streaming API; default base `https://api.inceptionlabs.ai/v1`, model `mercury-2`). API keys: `INCEPTION_API_KEY` / `DMS_INCEPTION_API_KEY`
+
+- **Inception** / Mercury 2: [API parameters](https://docs.inceptionlabs.ai/get-started/api-parameters) in settings (`reasoning_effort`, `reasoning_summary`, `reasoning_summary_wait`). Temperature clamped 0.5–1.0 per docs
 
 ## [1.4.0] - 2026-03-01
 
 ### Changed
+
 - Replaced custom markdown parser with [marked.js v1.2.9](https://github.com/markedjs/marked) (MIT License), inlined as a self-contained UMD bundle with a Qt Rich Text-compatible custom renderer
 - Proper handling of all standard GFM constructs: nested lists, loose list items, setext headings, link definitions, strikethrough, task lists, and more
 
 ### Fixed
+
 - Code blocks and blockquotes inside ordered list items no longer cause numbering to reset; code block tables are hoisted outside `<li>` elements using `<ol start="N">` segments to avoid Qt list-item indentation
 - Code block content indentation from being inside a list item is now correctly stripped by marked's built-in fence indentation compensation
 
 ## [1.3.3] - 2026-03-01
 
 ### Fixed
+
 - Ordered list numbering no longer resets to 1 when a code block, table, or blockquote appears between list items; uses `<ol start="N">` segments to preserve numbering
 - Blockquotes inside ordered list items now render correctly instead of appearing as literal `&gt;` text
 - Code blocks inside list items no longer display with the list's indentation; common leading whitespace is stripped before rendering
@@ -31,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.2] - 2026-02-28
 
 ### Fixed
+
 - Robust markdown placeholder system to prevent rendering issues with inline code and other elements
 - Inline code styling refined to use CSS padding instead of non-breaking spaces
 - Improved restoration logic for protected markdown blocks to ensure perfect HTML output
@@ -38,10 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.1] - 2026-02-28
 
 ### Added
+
 - Copy button for code blocks to easily copy snippets to clipboard (fixes #5)
 - Visual feedback hint ("Copied to clipboard") when copying text or code
 
 ### Fixed
+
 - Code block layout issues including extra spacing, horizontal overflow, and background gaps
 - Settings panel sizing issues by providing implicit dimensions (fixes #3)
 - Bug where long code lines could break the message bubble structure
@@ -49,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.0] - 2026-02-28
 
 ### Added
+
 - Per-provider settings profiles via new `providers` persisted object, so switching providers loads each provider's own endpoint/model/token settings
 - New chat confirmation dialog when history exists
 - Privacy note based on the AI service provider (remote vs. local)
@@ -57,10 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redesigned composer with improved layout and icon buttons
 
 ### Changed
+
 - Provider switch in settings now immediately swaps to that provider's saved profile instead of reusing the previous provider's configuration
 - Composer layout optimized for better space usage and readability
 
 ### Fixed
+
 - Requests using stale custom endpoint/model settings after switching provider from the dropdown
 - Chat history being cleared when switching providers (history is now retained per provider configuration)
 - Gemini requests failing with HTTP 400 due to unsupported `stream` field in request body
@@ -69,37 +79,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - 2026-02-24
 
 ### Added
+
 - Enter key now sends messages (Shift+Enter inserts newline) - issue #6
 - Regenerate button on assistant messages (appears on hover) - issue #6
 
 ### Changed
+
 - Send/Stop buttons are now icon-only (40x40) with tooltips - issue #6
 - Improved Gemini streaming finalization to handle `usageMetadata` end-of-stream signal
 
 ## [1.1.3] - 2026-02-21
 
 ### Fixed
+
 - Settings dropdown becoming non-interactive after toggling the plugin off/on from DMS settings while the settings panel was open
 
 ## [1.1.2] - 2026-02-18
 
 ### Fixed
+
 - Provider dropdown in the settings panel becoming non-interactive after closing and reopening the panel without restarting DMS
 
 ## [1.1.1] - 2026-02-12
 
 ### Fixed
+
 - Streaming responses appearing empty due to `curl --compressed` interfering with `StdioCollector` stdout capture
 
 ## [1.1.0] - 2026-01-17
 
 ### Added
+
 - Table rendering support in markdown with borders and proper cell alignment
 - Task list rendering with checkbox symbols (☑ for checked, ☐ for unchecked)
 - Strikethrough text support (`~~text~~` syntax)
 - Code block language labels (displays language identifier above code blocks)
 
 ### Fixed
+
 - Header spacing issues - now use CSS margins for consistent spacing
 - Code block background gaps with proper margin application
 - Settings panel sliders showing duplicate values on hover (e.g., "51205120" instead of "5120")
@@ -108,12 +125,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Code block language labels now use padding instead of margin to eliminate gaps
 
 ### Changed
+
 - Slider values now display in setting labels instead of tooltips for always-visible feedback
 - Updated markdown2html.js header comment to accurately describe supported features
 
 ## [1.0.0] - 2026-01-16
 
 ### Added
+
 - Initial release of AI Assistant plugin
 - Support for multiple AI providers (OpenAI, Anthropic, Gemini, Custom)
 - Streaming response support with real-time rendering
@@ -128,6 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive settings panel with live updates
 
 ### Fixed
+
 - Settings persistence bug where configuration wouldn't load after restart
 - Race condition with pluginId initialization
 - Whitespace handling in text input fields

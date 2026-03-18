@@ -58,7 +58,7 @@ cat ~/.config/DankMaterialShell/plugin_settings.json | jq .aiAssistant
 - OpenAI (gpt-5.2 models)
 - Anthropic (claude-4.5 models)
 - Google Gemini (gemini-2.5-flash, gemini-3-flash-preview)
-- Inception (OpenAI-compatible; [Inception Platform](https://platform.inceptionlabs.ai/))
+- Inception / Mercury 2: OpenAI-compatible chat completions plus [API parameters](https://docs.inceptionlabs.ai/get-started/api-parameters) (`reasoning_effort`, `reasoning_summary`, `reasoning_summary_wait`); [streaming](https://docs.inceptionlabs.ai/capabilities/streaming)
 - Custom (OpenAI-compatible endpoints)
 
 **Custom Provider Notes**:

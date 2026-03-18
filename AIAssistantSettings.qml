@@ -28,6 +28,9 @@ Item {
     property real temperature: 0.7
     property int maxTokens: 4096
     property bool useMonospace: false
+    property string inceptionReasoningEffort: "medium"
+    property bool inceptionReasoningSummary: true
+    property bool inceptionReasoningSummaryWait: false
 
     function save(key, value) {
         PluginService.savePluginData(pluginId, key, value)
@@ -43,9 +46,12 @@ Item {
                 apiKey: "",
                 saveApiKey: false,
                 apiKeyEnvVar: "",
-                temperature: 0.7,
-                maxTokens: 4096,
-                timeout: 30
+                temperature: 0.75,
+                maxTokens: 8192,
+                timeout: 30,
+                inceptionReasoningEffort: "medium",
+                inceptionReasoningSummary: true,
+                inceptionReasoningSummaryWait: false
             };
         case "anthropic":
             return {
@@ -97,7 +103,7 @@ Item {
     function normalizedProfile(id, raw) {
         const d = defaultsForProvider(id)
         const p = raw || {}
-        return {
+        const profile = {
             baseUrl: String(p.baseUrl || d.baseUrl).trim(),
             model: String(p.model || d.model).trim(),
             apiKey: String(p.apiKey || "").trim(),
@@ -107,6 +113,14 @@ Item {
             maxTokens: (typeof p.maxTokens === "number") ? p.maxTokens : d.maxTokens,
             timeout: (typeof p.timeout === "number") ? p.timeout : d.timeout
         }
+        if (id === "inception") {
+            const efforts = ["instant", "low", "medium", "high"]
+            let eff = String(p.inceptionReasoningEffort || d.inceptionReasoningEffort || "medium").toLowerCase()
+            profile.inceptionReasoningEffort = efforts.indexOf(eff) >= 0 ? eff : "medium"
+            profile.inceptionReasoningSummary = (typeof p.inceptionReasoningSummary === "boolean") ? p.inceptionReasoningSummary : (d.inceptionReasoningSummary !== false)
+            profile.inceptionReasoningSummaryWait = !!p.inceptionReasoningSummaryWait
+        }
+        return profile
     }
 
     function mergedProviders(rawProviders) {
@@ -144,6 +158,11 @@ Item {
         apiKeyEnvVar = active.apiKeyEnvVar
         temperature = active.temperature
         maxTokens = active.maxTokens
+        if (provider === "inception") {
+            inceptionReasoningEffort = active.inceptionReasoningEffort || "medium"
+            inceptionReasoningSummary = active.inceptionReasoningSummary !== false
+            inceptionReasoningSummaryWait = !!active.inceptionReasoningSummaryWait
+        }
     }
 
     function setProvider(providerId) {
@@ -344,6 +363,82 @@ Item {
                                     placeholderText: "gpt-5.2"
                                     onEditingFinished: saveActiveField("model", text.trim())
                                 }
+
+                                StyledText {
+                                    width: parent.width
+                                    visible: root.provider === "inception"
+                                    text: I18n.tr("Mercury 2: temperature 0.5–1.0, max_tokens 1–50000 (see Inception API parameters).")
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                    wrapMode: Text.WordWrap
+                                }
+
+                                StyledText {
+                                    text: I18n.tr("Reasoning effort")
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                    visible: root.provider === "inception"
+                                }
+                                DankDropdown {
+                                    width: parent.width
+                                    visible: root.provider === "inception"
+                                    options: ["instant", "low", "medium", "high"]
+                                    currentValue: root.inceptionReasoningEffort
+                                    onValueChanged: value => saveActiveField("inceptionReasoningEffort", value)
+                                }
+
+                                RowLayout {
+                                    width: parent.width
+                                    spacing: Theme.spacingM
+                                    visible: root.provider === "inception"
+                                    Column {
+                                        Layout.fillWidth: true
+                                        spacing: Theme.spacingXS
+                                        StyledText {
+                                            text: I18n.tr("Reasoning summary")
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            color: Theme.surfaceText
+                                        }
+                                        StyledText {
+                                            text: I18n.tr("Return a summary of the model's reasoning.")
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            color: Theme.surfaceVariantText
+                                            wrapMode: Text.WordWrap
+                                            width: parent.width
+                                        }
+                                    }
+                                    DankToggle {
+                                        checked: root.inceptionReasoningSummary
+                                        onToggled: checked => saveActiveField("inceptionReasoningSummary", checked)
+                                    }
+                                }
+
+                                RowLayout {
+                                    width: parent.width
+                                    spacing: Theme.spacingM
+                                    visible: root.provider === "inception"
+                                    Column {
+                                        Layout.fillWidth: true
+                                        spacing: Theme.spacingXS
+                                        StyledText {
+                                            text: I18n.tr("Wait for reasoning summary")
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            color: Theme.surfaceText
+                                        }
+                                        StyledText {
+                                            text: I18n.tr("Delay final response until the reasoning summary is ready.")
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            color: Theme.surfaceVariantText
+                                            wrapMode: Text.WordWrap
+                                            width: parent.width
+                                        }
+                                    }
+                                    DankToggle {
+                                        checked: root.inceptionReasoningSummaryWait
+                                        onToggled: checked => saveActiveField("inceptionReasoningSummaryWait", checked)
+                                    }
+                                }
+
                             }
                         }
                     }
@@ -485,7 +580,7 @@ Item {
                                     width: parent.width - parent.spacing - Theme.iconSize
 
                                     StyledText {
-                                        text: I18n.tr("Temperature: %1").arg(root.temperature.toFixed(1))
+                                        text: I18n.tr("Temperature: %1").arg(root.temperature.toFixed(2))
                                         font.pixelSize: Theme.fontSizeLarge
                                         font.weight: Font.Medium
                                         color: Theme.surfaceText
@@ -505,10 +600,11 @@ Item {
                                 width: parent.width
                                 height: 32
                                 minimum: 0
-                                maximum: 20
-                                value: Math.round(root.temperature * 10)
+                                maximum: 200
+                                step: 1
+                                value: Math.round(root.temperature * 100)
                                 showValue: false
-                                onSliderValueChanged: newValue => saveActiveField("temperature", newValue / 10)
+                                onSliderValueChanged: newValue => saveActiveField("temperature", newValue / 100)
                             }
                         }
                     }

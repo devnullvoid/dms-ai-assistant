@@ -53,6 +53,8 @@ function buildRequest(provider, payload, apiKey) {
         return anthropicRequest(payload, apiKey);
     case "gemini":
         return geminiRequest(payload, apiKey);
+    case "inception":
+        return inceptionRequest(payload, apiKey);
     case "custom":
         return customRequest(payload, apiKey);
     default:
@@ -70,6 +72,34 @@ function openaiRequest(payload, apiKey) {
         temperature: payload.temperature || 0.7,
         stream: true
     };
+    return { url, headers, body: JSON.stringify(body) };
+}
+
+function inceptionRequest(payload, apiKey) {
+    // Mercury 2 params: https://docs.inceptionlabs.ai/get-started/api-parameters
+    const url = openaiChatCompletionsUrl(payload.baseUrl || "https://api.inceptionlabs.ai/v1");
+    const headers = ["-H", "Content-Type: application/json", "-H", "Authorization: Bearer " + apiKey];
+    const maxTok = payload.max_tokens;
+    const mt = (typeof maxTok === "number" && maxTok > 0) ? Math.min(50000, maxTok) : 8192;
+    let t = (typeof payload.temperature === "number") ? payload.temperature : 0.75;
+    if (t < 0.5)
+        t = 0.5;
+    if (t > 1.0)
+        t = 1.0;
+    const body = {
+        model: payload.model,
+        messages: payload.messages,
+        max_tokens: mt,
+        temperature: t,
+        stream: true
+    };
+    const efforts = ["instant", "low", "medium", "high"];
+    const effort = String(payload.inceptionReasoningEffort || "medium").toLowerCase();
+    if (efforts.indexOf(effort) >= 0)
+        body.reasoning_effort = effort;
+    body.reasoning_summary = payload.inceptionReasoningSummary !== false;
+    if (payload.inceptionReasoningSummaryWait === true)
+        body.reasoning_summary_wait = true;
     return { url, headers, body: JSON.stringify(body) };
 }
 
