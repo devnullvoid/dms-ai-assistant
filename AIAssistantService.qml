@@ -618,7 +618,8 @@ Item {
 
     function buildCurlCommand(payload) {
         const key = resolveApiKey();
-        if (!key)
+        // Custom provider supports keyless local servers (Ollama, LM Studio, etc.)
+        if (!key && provider !== "custom")
             return null;
 
         const req = AIApiAdapters.buildRequest(provider, payload, key);
