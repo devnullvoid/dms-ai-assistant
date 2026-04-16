@@ -47,6 +47,9 @@ Item {
     property string sessionApiKey: "" // In-memory key
     property string apiKeyEnvVar: ""
     property bool useMonospace: false
+    property string inceptionReasoningEffort: "medium"
+    property bool inceptionReasoningSummary: true
+    property bool inceptionReasoningSummaryWait: false
 
     readonly property bool debugEnabled: (Quickshell.env("DMS_LOG_LEVEL") || "").toLowerCase() === "debug"
 
@@ -56,6 +59,20 @@ Item {
 
     function defaultsForProvider(id) {
         switch (id) {
+        case "inception":
+            return {
+                baseUrl: "https://api.inceptionlabs.ai/v1",
+                model: "mercury-2",
+                apiKey: "",
+                saveApiKey: false,
+                apiKeyEnvVar: "",
+                temperature: 0.75,
+                maxTokens: 8192,
+                timeout: 30,
+                inceptionReasoningEffort: "medium",
+                inceptionReasoningSummary: true,
+                inceptionReasoningSummaryWait: false
+            };
         case "anthropic":
             return {
                 baseUrl: "https://api.anthropic.com",
@@ -106,7 +123,7 @@ Item {
     function normalizedProfile(id, raw) {
         const defaults = defaultsForProvider(id);
         const p = raw || {};
-        return {
+        const profile = {
             baseUrl: String(p.baseUrl || defaults.baseUrl).trim(),
             model: String(p.model || defaults.model).trim(),
             apiKey: String(p.apiKey || "").trim(),
@@ -116,6 +133,14 @@ Item {
             maxTokens: (typeof p.maxTokens === "number") ? p.maxTokens : defaults.maxTokens,
             timeout: (typeof p.timeout === "number") ? p.timeout : defaults.timeout
         };
+        if (id === "inception") {
+            const efforts = ["instant", "low", "medium", "high"];
+            let eff = String(p.inceptionReasoningEffort || defaults.inceptionReasoningEffort || "medium").toLowerCase();
+            profile.inceptionReasoningEffort = efforts.indexOf(eff) >= 0 ? eff : "medium";
+            profile.inceptionReasoningSummary = (typeof p.inceptionReasoningSummary === "boolean") ? p.inceptionReasoningSummary : (defaults.inceptionReasoningSummary !== false);
+            profile.inceptionReasoningSummaryWait = !!p.inceptionReasoningSummaryWait;
+        }
+        return profile;
     }
 
     function mergedProviders(rawProviders) {
@@ -123,13 +148,14 @@ Item {
             openai: normalizedProfile("openai", null),
             anthropic: normalizedProfile("anthropic", null),
             gemini: normalizedProfile("gemini", null),
+            inception: normalizedProfile("inception", null),
             custom: normalizedProfile("custom", null)
         };
 
         if (!rawProviders || typeof rawProviders !== "object")
             return base;
 
-        const ids = ["openai", "anthropic", "gemini", "custom"];
+        const ids = ["openai", "anthropic", "gemini", "inception", "custom"];
         for (let i = 0; i < ids.length; i++) {
             const id = ids[i];
             if (rawProviders[id] && typeof rawProviders[id] === "object") {
@@ -154,7 +180,7 @@ Item {
     function loadSettings() {
         suppressConfigChange = true
         const selectedProvider = String(PluginService.loadPluginData(pluginId, "provider", "openai")).trim() || "openai"
-        const providerId = ["openai", "anthropic", "gemini", "custom"].includes(selectedProvider) ? selectedProvider : "openai"
+        const providerId = ["openai", "anthropic", "gemini", "inception", "custom"].includes(selectedProvider) ? selectedProvider : "openai"
         const rawProviders = PluginService.loadPluginData(pluginId, "providers", null)
         let nextProviders = mergedProviders(rawProviders)
 
@@ -186,6 +212,11 @@ Item {
         apiKey = active.apiKey
         saveApiKey = active.saveApiKey
         apiKeyEnvVar = active.apiKeyEnvVar
+        if (provider === "inception") {
+            inceptionReasoningEffort = active.inceptionReasoningEffort || "medium";
+            inceptionReasoningSummary = active.inceptionReasoningSummary !== false;
+            inceptionReasoningSummaryWait = !!active.inceptionReasoningSummaryWait;
+        }
         useMonospace = PluginService.loadPluginData(pluginId, "useMonospace", false)
         suppressConfigChange = false
 
@@ -348,6 +379,8 @@ Item {
                 return Quickshell.env("DMS_ANTHROPIC_API_KEY") || "";
             case "gemini":
                 return Quickshell.env("DMS_GEMINI_API_KEY") || "";
+            case "inception":
+                return Quickshell.env("DMS_INCEPTION_API_KEY") || "";
             case "custom":
                 return Quickshell.env("DMS_CUSTOM_API_KEY") || "";
             default:
@@ -361,6 +394,8 @@ Item {
                 return Quickshell.env("ANTHROPIC_API_KEY") || "";
             case "gemini":
                 return Quickshell.env("GEMINI_API_KEY") || "";
+            case "inception":
+                return Quickshell.env("INCEPTION_API_KEY") || "";
             case "custom":
                 return "";
             default:
@@ -563,7 +598,7 @@ Item {
         }
 
         msgs.push({ role: "user", content: latestText });
-        return {
+        const payload = {
             provider: provider,
             baseUrl: baseUrl,
             model: model,
@@ -573,6 +608,12 @@ Item {
             stream: true,
             timeout: timeout
         };
+        if (provider === "inception") {
+            payload.inceptionReasoningEffort = inceptionReasoningEffort;
+            payload.inceptionReasoningSummary = inceptionReasoningSummary;
+            payload.inceptionReasoningSummaryWait = inceptionReasoningSummaryWait;
+        }
+        return payload;
     }
 
     function buildCurlCommand(payload) {

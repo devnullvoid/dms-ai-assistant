@@ -5,6 +5,7 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
 ## Features
 
 - **Multiple AI Provider Support**: OpenAI, Anthropic, Google Gemini, and custom OpenAI-compatible APIs
+- **Inception Platform Support**: Inception’s OpenAI-compatible streaming API
 - **Streaming Responses**: Real-time streaming of AI responses with proper cancellation support
 - **Markdown Rendering**: Full markdown support with syntax highlighting for code blocks
 - **Persistent Chat History**: Conversations are saved and restored across sessions
@@ -15,8 +16,8 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
 
 ## Screenshots
 
-| Chat Interface | Settings Panel |
-|----------------|----------------|
+| Chat Interface                                             | Settings Panel                                                 |
+| ---------------------------------------------------------- | -------------------------------------------------------------- |
 | ![Chat](screenshots/AI_ASSISTANT_SCREENSHOT_CURRENT_1.png) | ![Settings](screenshots/AI_ASSISTANT_SCREENSHOT_CURRENT_5.png) |
 
 ## Requirements
@@ -87,6 +88,16 @@ Model: gemini-2.5-flash (production) or gemini-3-flash-preview (experimental)
 API Key: Your Google API key
 ```
 
+#### Inception Platform (OpenAI-compatible)
+
+```
+Provider: inception
+Base URL: https://api.inceptionlabs.ai/v1
+Model: mercury-2
+API Key: Your Inception API key
+Mercury 2 options (see [API parameters](https://docs.inceptionlabs.ai/get-started/api-parameters)): reasoning effort, reasoning summary, wait-for-reasoning-summary. Temperature is clamped to **0.5–1.0**; default max_tokens **8192** for new Inception profiles.
+```
+
 #### Custom Provider
 
 For any OpenAI-compatible API (LocalAI, Ollama, LM Studio, etc.):
@@ -140,15 +151,15 @@ The AI Assistant can be triggered via:
 
 2. **Keybind**: Configure in your compositor configuration
 
-  ```kdl
-  # Niri example:
-  Mod+A { spawn "dms" "ipc" "call" "plugins" "toggle" "aiAssistant"; }
-  ```
+```kdl
+# Niri example:
+Mod+A { spawn "dms" "ipc" "call" "plugins" "toggle" "aiAssistant"; }
+```
 
-  ```conf
-  # Hyprland example:
-  bind = SUPER, A, exec, dms ipc call plugins toggle aiAssistant
-  ```
+```conf
+# Hyprland example:
+bind = SUPER, A, exec, dms ipc call plugins toggle aiAssistant
+```
 
 ### Chat Interface
 
@@ -270,7 +281,7 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Credits
 
-- **Author**: Jon Rogers - *devnullvoid*
+- **Author**: Jon Rogers - _devnullvoid_
 - **DankMaterialShell**: [DankMaterialShell Project](https://github.com/AvengeMedia/DankMaterialShell)
 - **QML/Qt**: [Qt Project](https://www.qt.io/)
 
