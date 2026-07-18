@@ -65,15 +65,19 @@ function buildRequest(provider, payload, apiKey) {
 }
 
 function openaiRequest(payload, apiKey) {
+    return openaiCompatibleRequest(payload, apiKey, "max_completion_tokens");
+}
+
+function openaiCompatibleRequest(payload, apiKey, tokenParameter) {
     const url = openaiChatCompletionsUrl(payload.baseUrl || "https://api.openai.com");
     const headers = ["-H", "Content-Type: application/json", "-H", "Authorization: Bearer " + apiKey];
     const body = {
         model: payload.model,
         messages: payload.messages,
-        max_tokens: payload.max_tokens || 1024,
         temperature: payload.temperature || 0.7,
         stream: true
     };
+    body[tokenParameter] = payload.max_tokens || 1024;
     return { url, headers, body: JSON.stringify(body) };
 }
 
@@ -145,7 +149,7 @@ function geminiRequest(payload, apiKey) {
 
 function customRequest(payload, apiKey) {
     // v1 fallback: treat as OpenAI-compatible.
-    return openaiRequest(payload, apiKey);
+    return openaiCompatibleRequest(payload, apiKey, "max_tokens");
 }
 
 function ollamaRequest(payload) {

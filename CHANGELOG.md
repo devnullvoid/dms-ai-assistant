@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-07-18
+
 ### Added
 
 - **Inception** / Mercury 2: [API parameters](https://docs.inceptionlabs.ai/get-started/api-parameters) in settings (`reasoning_effort`, `reasoning_summary`, `reasoning_summary_wait`). Temperature clamped 0.5–1.0 per docs
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Gemini streaming responses no longer finalize early when search-grounded streaming emits usage metadata before visible text
+- OpenAI chat requests now use `max_completion_tokens`, fixing HTTP 400 errors with current GPT models (#12)
 
 ## [1.4.0] - 2026-03-01
 
