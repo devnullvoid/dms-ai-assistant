@@ -54,9 +54,9 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
 
 ### Provider Setup
 
-The plugin supports multiple AI providers. Configure your preferred provider in the settings panel:
+The plugin supports multiple AI providers. Configure your preferred provider in the settings panel. When credentials are available, the plugin fetches the models exposed by the configured provider and makes them available in the model selector. You can refresh the list or enter a model ID manually at any time.
 
-> **Note**: Model names change frequently as providers release new versions. Check official provider documentation for the latest available models:
+> **Note**: Discovery reflects what each provider's model-list endpoint returns. Gemini results are filtered to models that support `generateContent`. OpenAI's Models API does not publish endpoint capabilities, so its list can include models that are not compatible with chat completions. Check official provider documentation when needed:
 >
 > - [OpenAI Models](https://platform.openai.com/docs/models)
 > - [Anthropic Models](https://docs.anthropic.com/en/docs/about-claude/models)

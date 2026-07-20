@@ -21,6 +21,13 @@ function openaiChatCompletionsUrl(baseUrl) {
     return b + "/v1/chat/completions";
 }
 
+function openaiModelsUrl(baseUrl) {
+    const b = normalizeBaseUrl(baseUrl || "https://api.openai.com");
+    if (/\/v\d+$/.test(b))
+        return b + "/models";
+    return b + "/v1/models";
+}
+
 function buildCurlCommand(provider, payload, apiKey) {
     const request = buildRequest(provider, payload, apiKey);
     if (!request || !request.url)
@@ -45,6 +52,107 @@ function buildCurlCommand(provider, payload, apiKey) {
         .concat(request.headers || [])
         .concat(["-d", request.body || "{}", request.url]);
     return cmd;
+}
+
+function buildModelsRequest(provider, baseUrl, apiKey) {
+    const base = normalizeBaseUrl(baseUrl);
+    switch (provider) {
+    case "anthropic":
+        return {
+            url: (base || "https://api.anthropic.com") + "/v1/models?limit=1000",
+            headers: [
+                "-H", "x-api-key: " + apiKey,
+                "-H", "anthropic-version: 2023-06-01"
+            ]
+        };
+    case "gemini":
+        return {
+            url: (base || "https://generativelanguage.googleapis.com")
+                + "/v1beta/models?pageSize=1000&key=" + encodeURIComponent(apiKey),
+            headers: []
+        };
+    case "inception":
+        return {
+            url: (base || "https://api.inceptionlabs.ai/v1") + "/chat/completions/models",
+            headers: ["-H", "Authorization: Bearer " + apiKey]
+        };
+    case "ollama":
+        return {
+            url: (base || "http://localhost:11434") + "/api/tags",
+            headers: []
+        };
+    case "custom":
+        return {
+            url: openaiModelsUrl(base || "https://api.openai.com"),
+            headers: apiKey ? ["-H", "Authorization: Bearer " + apiKey] : []
+        };
+    default:
+        return {
+            url: openaiModelsUrl(base || "https://api.openai.com"),
+            headers: ["-H", "Authorization: Bearer " + apiKey]
+        };
+    }
+}
+
+function buildModelsCurlCommand(provider, baseUrl, apiKey) {
+    const request = buildModelsRequest(provider, baseUrl, apiKey);
+    if (!request || !request.url)
+        return null;
+    return [
+        "curl",
+        "-sS",
+        "--show-error",
+        "--connect-timeout", "5",
+        "--max-time", "15",
+        "-w", "\\nDMS_STATUS:%{http_code}\\n"
+    ].concat(request.headers || []).concat([request.url]);
+}
+
+function parseModelsResponse(provider, responseText) {
+    const parsed = JSON.parse(responseText || "{}");
+    let rawModels = [];
+    if (provider === "ollama")
+        rawModels = Array.isArray(parsed.models) ? parsed.models : [];
+    else if (provider === "gemini")
+        rawModels = Array.isArray(parsed.models) ? parsed.models : [];
+    else
+        rawModels = Array.isArray(parsed.data) ? parsed.data : [];
+
+    const models = [];
+    const seen = {};
+    for (let i = 0; i < rawModels.length; i++) {
+        const raw = rawModels[i] || {};
+        if (provider === "gemini") {
+            const methods = Array.isArray(raw.supportedGenerationMethods) ? raw.supportedGenerationMethods : [];
+            if (methods.indexOf("generateContent") === -1)
+                continue;
+        }
+
+        let id = "";
+        if (provider === "ollama")
+            id = String(raw.name || raw.model || "").trim();
+        else if (provider === "gemini")
+            id = String(raw.baseModelId || raw.name || "").replace(/^models\//, "").trim();
+        else
+            id = String(raw.id || "").trim();
+        if (!id || seen[id])
+            continue;
+
+        seen[id] = true;
+        models.push({
+            id: id,
+            displayName: String(raw.display_name || raw.displayName || raw.name || id).replace(/^models\//, ""),
+            contextLength: Number(raw.context_length || raw.inputTokenLimit || 0),
+            outputTokenLimit: Number(raw.max_output_length || raw.max_completion_tokens || raw.outputTokenLimit || 0),
+            supportedParameters: Array.isArray(raw.supported_sampling_parameters)
+                ? raw.supported_sampling_parameters.slice()
+                : (Array.isArray(raw.supported_parameters) ? raw.supported_parameters.slice() : []),
+            supportsGenerateContent: provider === "gemini"
+        });
+    }
+
+    models.sort((a, b) => a.id.localeCompare(b.id));
+    return models;
 }
 
 function buildRequest(provider, payload, apiKey) {

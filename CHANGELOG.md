@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Capability-aware model discovery for OpenAI, Anthropic, Gemini, Inception, Ollama, and compatible custom endpoints, with manual model ID fallback
+
+### Changed
+
+- Chat history is now shared across model switches within the same provider endpoint; existing per-model histories are migrated using the selected or most recently active conversation
+
 ## [1.6.1] - 2026-07-18
 
 ### Added

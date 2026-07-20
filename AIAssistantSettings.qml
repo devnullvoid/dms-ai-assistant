@@ -367,7 +367,10 @@ Item {
                                     width: parent.width
                                     text: root.baseUrl
                                     placeholderText: "https://api.openai.com"
-                                    onEditingFinished: saveActiveField("baseUrl", text.trim())
+                                    onEditingFinished: {
+                                        saveActiveField("baseUrl", text.trim())
+                                        Qt.callLater(() => aiService.refreshAvailableModels(true))
+                                    }
                                 }
 
                                 // Model
@@ -378,9 +381,9 @@ Item {
                                 }
                                 DankDropdown {
                                     width: parent.width
-                                    visible: root.provider === "ollama" && (aiService.availableModels?.length ?? 0) > 0
-                                    options: aiService.availableModels || []
-                                    currentValue: root.model
+                                    visible: (aiService.availableModels?.length ?? 0) > 0
+                                    options: aiService.selectableModels || []
+                                    currentValue: (aiService.availableModels || []).indexOf(root.model) >= 0 ? root.model : ""
                                     onValueChanged: value => {
                                         saveActiveField("model", value)
                                         aiService.setCurrentModel(value)
@@ -388,19 +391,16 @@ Item {
                                 }
                                 DankTextField {
                                     width: parent.width
-                                    visible: root.provider !== "ollama" || (aiService.availableModels?.length ?? 0) === 0
                                     text: root.model
                                     placeholderText: root.provider === "ollama" ? "llama3.2" : "gpt-5.2"
                                     onEditingFinished: {
                                         saveActiveField("model", text.trim())
-                                        if (root.provider === "ollama")
-                                            aiService.setCurrentModel(text.trim())
+                                        aiService.setCurrentModel(text.trim())
                                     }
                                 }
 
                                 RowLayout {
                                     width: parent.width
-                                    visible: root.provider === "ollama"
                                     spacing: Theme.spacingM
 
                                     DankButton {
@@ -412,11 +412,7 @@ Item {
 
                                     StyledText {
                                         Layout.fillWidth: true
-                                        text: aiService.modelsError
-                                            ? I18n.tr(aiService.modelsError)
-                                            : ((aiService.availableModels?.length ?? 0) > 0
-                                                ? I18n.tr("%1 installed model(s) detected.").arg(aiService.availableModels.length)
-                                                : I18n.tr("Model list will be fetched from the local Ollama server."))
+                                        text: I18n.tr(aiService.modelDiscoveryStatusText())
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: aiService.modelsError ? Theme.error : Theme.surfaceVariantText
                                         wrapMode: Text.WordWrap
@@ -608,6 +604,7 @@ Item {
                                         } else {
                                             aiService.sessionApiKey = text.trim()
                                         }
+                                        Qt.callLater(() => aiService.refreshAvailableModels(true))
                                     }
                                 }
 
@@ -622,7 +619,10 @@ Item {
                                     text: root.apiKeyEnvVar
                                     placeholderText: root.provider === "ollama" ? I18n.tr("Optional override") : I18n.tr("e.g. OPENAI_API_KEY")
                                     leftIconName: "terminal"
-                                    onEditingFinished: saveActiveField("apiKeyEnvVar", text.trim())
+                                    onEditingFinished: {
+                                        saveActiveField("apiKeyEnvVar", text.trim())
+                                        Qt.callLater(() => aiService.refreshAvailableModels(true))
+                                    }
                                 }
 
                                 // Remember API Key Toggle

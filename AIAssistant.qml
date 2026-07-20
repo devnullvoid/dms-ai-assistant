@@ -160,16 +160,18 @@ Item {
                 }
             }
 
-            Item {
-                visible: aiService.provider === "ollama" && (aiService.availableModels?.length ?? 0) > 0
+            Loader {
+                active: aiService.currentModelDiscovered ?? false
+                visible: active
                 Layout.preferredWidth: 190
                 Layout.preferredHeight: 36
 
-                DankDropdown {
-                    anchors.fill: parent
-                    options: aiService.availableModels || []
-                    currentValue: aiService.model
-                    onValueChanged: value => aiService.setCurrentModel(value)
+                sourceComponent: Component {
+                    DankDropdown {
+                        options: aiService.selectableModels || []
+                        currentValue: aiService.model
+                        onValueChanged: value => aiService.setCurrentModel(value)
+                    }
                 }
             }
 

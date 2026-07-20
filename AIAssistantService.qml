@@ -52,15 +52,23 @@ Item {
     property bool inceptionReasoningSummaryWait: false
     property bool geminiWebSearch: false
     property var availableModels: []
+    property var availableModelDetails: []
     property bool modelsLoading: false
     property string modelsError: ""
     property string modelFetchOutput: ""
+    property string modelDiscoveryConfig: ""
+    property string modelFetchProvider: ""
+    property string modelFetchBaseUrl: ""
+    property string modelFetchCredential: ""
+    property bool pendingModelRefresh: false
+    readonly property var selectableModels: (availableModels || []).slice()
+    readonly property bool currentModelDiscovered: !!model && (availableModels || []).indexOf(model) >= 0
 
     readonly property bool debugEnabled: (Quickshell.env("DMS_LOG_LEVEL") || "").toLowerCase() === "debug"
 
     onProviderChanged: handleConfigChanged()
     onBaseUrlChanged: handleConfigChanged()
-    onModelChanged: handleConfigChanged()
+    onSessionApiKeyChanged: refreshAvailableModels(true)
 
     function defaultsForProvider(id) {
         switch (id) {
@@ -277,12 +285,18 @@ Item {
         onLoaded: {
             try {
                 const data = JSON.parse(text());
-                if (data.version >= 2 && data.sessions && typeof data.sessions === "object") {
+                if (data.version >= 3 && data.sessions && typeof data.sessions === "object") {
                     sessionsByConfig = data.sessions;
+                } else if (data.version === 2 && data.sessions && typeof data.sessions === "object") {
+                    sessionsByConfig = migrateModelScopedSessions(data.sessions);
                 } else {
                     const legacyHash = data.providerConfigHash || computeConfigHash();
+                    const separator = legacyHash.lastIndexOf("|");
+                    const historyHash = (legacyHash.match(/\|/g) || []).length >= 2
+                        ? legacyHash.substring(0, separator)
+                        : legacyHash;
                     sessionsByConfig = {};
-                    sessionsByConfig[legacyHash] = Array.isArray(data.messages) ? data.messages : [];
+                    sessionsByConfig[historyHash] = Array.isArray(data.messages) ? data.messages : [];
                 }
             } catch (e) {
                 sessionsByConfig = {};
@@ -300,7 +314,38 @@ Item {
     }
 
     function computeConfigHash() {
-        return provider + "|" + baseUrl + "|" + model;
+        return provider + "|" + baseUrl;
+    }
+
+    function latestMessageTimestamp(messages) {
+        if (!Array.isArray(messages) || messages.length === 0)
+            return 0;
+        let latest = 0;
+        for (let i = 0; i < messages.length; i++)
+            latest = Math.max(latest, Number(messages[i]?.timestamp || 0));
+        return latest;
+    }
+
+    function migrateModelScopedSessions(oldSessions) {
+        const migrated = {};
+        const selectedLegacyHash = provider + "|" + baseUrl + "|" + model;
+        const selectedTargets = {};
+        const keys = Object.keys(oldSessions || {});
+        for (let i = 0; i < keys.length; i++) {
+            const oldHash = keys[i];
+            const separator = oldHash.lastIndexOf("|");
+            const nextHash = separator >= 0 ? oldHash.substring(0, separator) : oldHash;
+            const messages = Array.isArray(oldSessions[oldHash]) ? oldSessions[oldHash] : [];
+            const shouldReplace = !Array.isArray(migrated[nextHash])
+                || oldHash === selectedLegacyHash
+                || (!selectedTargets[nextHash]
+                    && latestMessageTimestamp(messages) > latestMessageTimestamp(migrated[nextHash]));
+            if (shouldReplace) {
+                migrated[nextHash] = messages;
+                selectedTargets[nextHash] = oldHash === selectedLegacyHash;
+            }
+        }
+        return migrated;
     }
 
     function persistCurrentMessagesForHash(configHash) {
@@ -376,7 +421,7 @@ Item {
             return;
 
         const data = {
-            version: 2,
+            version: 3,
             providerConfigHash: currentHash,
             sessions: sessionsByConfig || {}
         };
@@ -875,31 +920,63 @@ Item {
     }
 
     function refreshAvailableModels(force) {
-        if (provider !== "ollama") {
+        const key = resolveApiKey();
+        const needsKey = provider !== "ollama" && provider !== "custom";
+        if (needsKey && !key) {
+            if (modelFetcher.running) {
+                pendingModelRefresh = false;
+                modelFetcher.running = false;
+            }
             availableModels = [];
+            availableModelDetails = [];
             modelsLoading = false;
             modelsError = "";
             modelFetchOutput = "";
+            modelDiscoveryConfig = "";
             return;
         }
 
-        if (modelsLoading && !force)
+        const normalizedBase = AIApiAdapters.normalizeBaseUrl(baseUrl || defaultsForProvider(provider).baseUrl);
+        const nextConfig = provider + "|" + normalizedBase + "|" + key;
+        if (!force && modelDiscoveryConfig === nextConfig)
+            return;
+
+        if (modelsLoading) {
+            const activeConfig = modelFetchProvider + "|" + modelFetchBaseUrl + "|" + modelFetchCredential;
+            if (activeConfig === nextConfig)
+                return;
+            pendingModelRefresh = true;
+            modelFetcher.running = false;
+            return;
+        }
+
+        const command = AIApiAdapters.buildModelsCurlCommand(provider, normalizedBase, key);
+        if (!command)
             return;
 
         modelsLoading = true;
         modelsError = "";
+        availableModels = [];
+        availableModelDetails = [];
         modelFetchOutput = "";
         modelFetchCollector.lastLength = 0;
-        modelFetcher.command = [
-            "curl",
-            "-sS",
-            "--connect-timeout",
-            "2",
-            "--max-time",
-            "5",
-            AIApiAdapters.normalizeBaseUrl(baseUrl || defaultsForProvider("ollama").baseUrl) + "/api/tags"
-        ];
+        modelFetchProvider = provider;
+        modelFetchBaseUrl = normalizedBase;
+        modelFetchCredential = key;
+        modelFetcher.command = command;
         modelFetcher.running = true;
+    }
+
+    function modelDiscoveryStatusText() {
+        if (modelsLoading)
+            return "Loading available models…";
+        if (modelsError)
+            return modelsError;
+        if ((availableModels?.length ?? 0) > 0)
+            return "%1 available model(s) detected.".arg(availableModels.length);
+        if (provider !== "ollama" && provider !== "custom" && !resolveApiKey())
+            return "Enter an API key to load available models.";
+        return "No model list loaded. Manual model IDs remain available.";
     }
 
     function setCurrentModel(nextModel) {
@@ -937,37 +1014,48 @@ Item {
         onExited: exitCode => {
             modelsLoading = false;
 
-            if (provider !== "ollama")
+            const currentBase = AIApiAdapters.normalizeBaseUrl(baseUrl || defaultsForProvider(provider).baseUrl);
+            const stale = provider !== modelFetchProvider
+                || currentBase !== modelFetchBaseUrl
+                || resolveApiKey() !== modelFetchCredential;
+            if (pendingModelRefresh || stale) {
+                pendingModelRefresh = false;
+                Qt.callLater(() => root.refreshAvailableModels(true));
                 return;
+            }
 
             if (exitCode !== 0) {
                 availableModels = [];
-                modelsError = "Unable to load installed Ollama models.";
+                availableModelDetails = [];
+                modelsError = "Unable to load available models.";
                 return;
             }
 
             try {
-                const parsed = JSON.parse(modelFetchOutput || "{}");
-                const rawModels = Array.isArray(parsed.models) ? parsed.models : [];
-                const names = [];
-                const seen = {};
-
-                for (let i = 0; i < rawModels.length; i++) {
-                    const name = String(rawModels[i]?.name || "").trim();
-                    if (!name || seen[name])
-                        continue;
-                    seen[name] = true;
-                    names.push(name);
+                const statusMatch = modelFetchOutput.match(/\nDMS_STATUS:(\d{3})\s*$/);
+                const status = statusMatch ? Number(statusMatch[1]) : 0;
+                const responseBody = statusMatch
+                    ? modelFetchOutput.substring(0, statusMatch.index)
+                    : modelFetchOutput;
+                if (status < 200 || status >= 300) {
+                    availableModels = [];
+                    availableModelDetails = [];
+                    modelsError = status === 401 || status === 403
+                        ? "Unable to load models: check the API key."
+                        : "Unable to load models (HTTP %1).".arg(status || "unknown");
+                    modelDiscoveryConfig = modelFetchProvider + "|" + modelFetchBaseUrl + "|" + modelFetchCredential;
+                    return;
                 }
 
-                availableModels = names;
-                modelsError = names.length > 0 ? "" : "No Ollama models found.";
-
-                if (names.length > 0 && names.indexOf(model) === -1)
-                    setCurrentModel(names[0]);
+                const details = AIApiAdapters.parseModelsResponse(modelFetchProvider, responseBody);
+                availableModelDetails = details;
+                availableModels = details.map(item => item.id);
+                modelsError = details.length > 0 ? "" : "No models found.";
+                modelDiscoveryConfig = modelFetchProvider + "|" + modelFetchBaseUrl + "|" + modelFetchCredential;
             } catch (e) {
                 availableModels = [];
-                modelsError = "Unable to parse Ollama model list.";
+                availableModelDetails = [];
+                modelsError = "Unable to parse the model list.";
             }
         }
     }
