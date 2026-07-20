@@ -656,8 +656,9 @@ Item {
 
                     // Temperature Card
                     Rectangle {
+                        visible: root.provider !== "openai"
                         width: parent.width
-                        height: tempContent.height + Theme.spacingL * 2
+                        height: visible ? tempContent.height + Theme.spacingL * 2 : 0
                         radius: Theme.cornerRadius
                         color: Theme.withAlpha(Theme.surfaceContainerHigh, Theme.popupTransparency)
                         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)

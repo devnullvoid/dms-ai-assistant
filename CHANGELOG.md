@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Chat history is now shared across model switches within the same provider endpoint; existing per-model histories are migrated using the selected or most recently active conversation
 
+### Fixed
+
+- First-party OpenAI requests no longer send the unsupported `temperature` parameter, enabling current GPT reasoning models while retaining temperature for other providers
+
 ## [1.6.1] - 2026-07-18
 
 ### Added
