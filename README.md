@@ -2,6 +2,10 @@
 
 An integrated AI chat assistant plugin for DankMaterialShell with support for multiple AI providers, streaming responses, and markdown rendering.
 
+Chat follows incoming responses while you are at the bottom. Scroll up with the mouse wheel, touchpad, or scrollbar to read earlier messages without being pulled back down; return to the bottom to resume following.
+
+The scrolling regression checks run with `node --test tests/scrolling.test.cjs` (requires Qt 6 Quick Test). They use an isolated QML scene and no provider credentials.
+
 ## Features
 
 - **Multiple AI Provider Support**: OpenAI, Anthropic, Google Gemini, Ollama, Inception, and custom OpenAI-compatible APIs

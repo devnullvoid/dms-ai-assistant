@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-10-14
+
+### Fixed
+
+- Preserve manual chat scrolling during streaming, final markdown layout, and message-height changes (#14). Queued automatic scrolling now respects wheel, touchpad, and scrollbar navigation; following resumes when the user returns to the bottom.
+
 ## [1.7.0] - 2026-07-19
 
 ### Added

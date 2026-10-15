@@ -112,6 +112,13 @@ With `DMS_LOG_LEVEL=debug`, watch for:
 
 ## File Modification Guidelines
 
+### Chat scrolling (2026-10-14, #14)
+
+- Keep follow-bottom intent separate from ListView geometry. Variable-height delegates can change `contentY`, `contentHeight`, and `originY` during layout without user input.
+- Every deferred/timed scroll must re-check `stickToBottom` and active user interaction when it executes. Do not queue unconditional `positionViewAtEnd()` calls or reset following in a delayed callback.
+- Wheel/touchpad/scrollbar navigation cancels pending scrolling; returning to the bottom resumes following. The wheel observer must remain nonblocking.
+- Run `node --test tests/scrolling.test.cjs` with Qt 6 Quick Test installed. Set `QML_TEST_RUNNER` if it is not at `/usr/lib/qt6/bin/qmltestrunner`. Tests run the actual MessageList and real wheel/scrollbar input with a variable-height bubble and minimal Theme fixture; they make no API calls and do not reload DMS.
+
 - **No build needed** - Changes take effect after DMS restart
 - **Read before editing** - Always read files first to understand context
 - **Test with debug logging** - Run `QS_FORCE_STDERR_LOGGING=1 DMS_LOG_LEVEL=debug dms run`
