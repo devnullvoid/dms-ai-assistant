@@ -66,6 +66,16 @@ Item {
         aiService.clearHistory(true)
     }
 
+    function confirmClearHistory() {
+        if (aiService.isStreaming ?? false) {
+            showTemporaryHint(I18n.tr("Stop current response first."))
+            return
+        }
+        aiService.clearHistory(true)
+        showNewChatConfirm = false
+        showTemporaryHint(I18n.tr("Current chat history cleared."))
+    }
+
     function sendCurrentMessage() {
         if (!composer.text || composer.text.trim().length === 0)
             return;
@@ -543,6 +553,17 @@ Item {
                     }
                 }
 
+                DankButton {
+                    text: I18n.tr("Clear current chat")
+                    iconName: "delete_sweep"
+                    width: parent.width
+                    enabled: root.hasMessages && !(aiService.isStreaming ?? false)
+                    onClicked: {
+                        showOverflowMenu = false
+                        startNewChat()
+                    }
+                }
+
                 Rectangle {
                     width: parent.width
                     height: 1
@@ -575,8 +596,7 @@ Item {
                 showNewChatConfirm = false
                 event.accepted = true
             } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                aiService.clearHistory(true)
-                showNewChatConfirm = false
+                confirmClearHistory()
                 event.accepted = true
             }
         }
@@ -603,7 +623,7 @@ Item {
                 spacing: Theme.spacingM
 
                 StyledText {
-                    text: I18n.tr("Start a new chat?")
+                    text: I18n.tr("Clear current chat history?")
                     color: Theme.surfaceText
                     font.pixelSize: Theme.fontSizeLarge
                     font.weight: Font.Medium
@@ -612,7 +632,7 @@ Item {
                 }
 
                 StyledText {
-                    text: I18n.tr("This clears the current chat history.")
+                    text: I18n.tr("This removes messages from the current conversation only. Other provider chats are kept.")
                     color: Theme.surfaceTextMedium
                     font.pixelSize: Theme.fontSizeSmall
                     width: parent.width
@@ -629,11 +649,10 @@ Item {
                     }
 
                     DankButton {
-                        text: I18n.tr("New chat")
+                        text: I18n.tr("Clear history")
                         iconName: "keyboard_return"
                         onClicked: {
-                            aiService.clearHistory(true)
-                            showNewChatConfirm = false
+                            confirmClearHistory()
                         }
                     }
                 }

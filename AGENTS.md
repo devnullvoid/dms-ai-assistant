@@ -72,11 +72,12 @@ cat ~/.config/DankMaterialShell/plugin_settings.json | jq .aiAssistant
 **IMPORTANT**: Must hardcode `pluginId: "aiAssistant"` instead of using injected `pluginService.pluginId` because PluginService injection happens after `Component.onCompleted`.
 
 **API Key Resolution Order**:
-1. Session key (in-memory, not persisted)
-2. Saved key (if `saveApiKey` is true)
-3. Custom env var (from `apiKeyEnvVar` setting)
-4. Provider-specific env var (`<PROVIDER>_API_KEY`)
-5. Scoped env var (`DMS_<PROVIDER>_API_KEY`)
+1. Saved key when `saveApiKey` is true, otherwise the current provider's session key (in-memory, not persisted)
+2. Custom env var (from `apiKeyEnvVar` setting)
+3. Provider-specific env var (`<PROVIDER>_API_KEY`)
+4. Scoped env var (`DMS_<PROVIDER>_API_KEY`)
+
+An inactive storage mode must not override the selected mode's key.
 
 ## Debug Logging
 
@@ -111,6 +112,14 @@ With `DMS_LOG_LEVEL=debug`, watch for:
 - **1.1.0**: Initial release with multi-provider support
 
 ## File Modification Guidelines
+
+### Credential editing and clear history (2026-11-15)
+
+- Keep `apiKeyDraft` independent of settings reloads while dirty; commit on Enter, field blur, explicit Save key, or provider change. Do not persist on each keystroke or log credentials.
+- Update Remember mode and its saved key together through `saveActiveFields()`. Use the current draft when toggling; session keys are provider-scoped and updated through `setSessionApiKey()`.
+- Turning Remember off removes the active provider's saved key and legacy key copy. Environment variables remain fallbacks when the selected credential is empty.
+- More → Clear current chat reuses the New chat confirmation, blocks clearing during streaming, and persists only the active conversation's empty history.
+- `node --test tests/*.test.cjs` covers actual settings/service controller methods and key-field handlers in isolated QML fixtures, including synchronous reloads, key storage transitions, provider switching, and history confirmation/isolation. Network, settings storage, and session-file I/O are stubbed; no real credentials or conversations are read or changed.
 
 ### Chat scrolling (2026-10-14, #14)
 

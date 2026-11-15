@@ -4,6 +4,10 @@ An integrated AI chat assistant plugin for DankMaterialShell with support for mu
 
 Chat follows incoming responses while you are at the bottom. Scroll up with the mouse wheel, touchpad, or scrollbar to read earlier messages without being pulled back down; return to the bottom to resume following.
 
+To change an API key, edit it in Settings and press Enter, leave the field, or choose **Save key**. Unsaved edits survive settings refreshes. **Remember API Key** saves the key for that provider; turning it off keeps the current key in memory for the session and removes its saved copy. Session keys stay separate for each provider.
+
+Choose **More → Clear current chat** to remove the active conversation's messages after confirmation. Other provider conversations are kept. Stop any active response before clearing.
+
 The scrolling regression checks run with `node --test tests/scrolling.test.cjs` (requires Qt 6 Quick Test). They use an isolated QML scene and no provider credentials.
 
 ## Features

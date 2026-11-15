@@ -44,7 +44,8 @@ Item {
     property int timeout: 30
     property string apiKey: ""
     property bool saveApiKey: false
-    property string sessionApiKey: "" // In-memory key
+    property var sessionApiKeys: ({}) // In-memory keys, scoped to each provider
+    readonly property string sessionApiKey: sessionApiKeys[provider] || ""
     property string apiKeyEnvVar: ""
     property bool useMonospace: false
     property string inceptionReasoningEffort: "medium"
@@ -68,7 +69,13 @@ Item {
 
     onProviderChanged: handleConfigChanged()
     onBaseUrlChanged: handleConfigChanged()
-    onSessionApiKeyChanged: refreshAvailableModels(true)
+    onSessionApiKeyChanged: if (!suppressConfigChange) refreshAvailableModels(true)
+
+    function setSessionApiKey(value) {
+        const next = Object.assign({}, sessionApiKeys);
+        next[provider] = String(value || "").trim();
+        sessionApiKeys = next;
+    }
 
     function defaultsForProvider(id) {
         switch (id) {
@@ -477,7 +484,9 @@ Item {
         }
 
         // Use local properties instead of SettingsData
-        const sKey = sessionApiKey || "";
+        // Remembered credentials are authoritative in saved-key mode. A stale
+        // session override must not silently win after a key is replaced.
+        const sKey = saveApiKey ? "" : (sessionApiKey || "");
         const svKey = saveApiKey ? (apiKey || "") : "";
         const customEnvName = (apiKeyEnvVar || "").trim();
         const customEnv = customEnvName ? (Quickshell.env(customEnvName) || "") : "";

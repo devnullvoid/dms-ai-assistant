@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-11-15
+
+### Fixed
+
+- Keep API key drafts intact during settings reloads and add an explicit Save key action. Saved credentials now take precedence over stale session keys when Remember API Key is enabled.
+- Scope in-memory keys to each provider; preserve edited keys when changing storage mode and remove the saved copy when switching to session-only use.
+
+### Added
+
+- Clear current chat in the More menu, with confirmation and protection against clearing during a streaming response. Other provider conversations are preserved.
+
 ## [1.7.1] - 2026-10-14
 
 ### Fixed

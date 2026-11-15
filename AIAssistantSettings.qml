@@ -32,6 +32,9 @@ Item {
     property bool inceptionReasoningSummary: true
     property bool inceptionReasoningSummaryWait: false
     property bool geminiWebSearch: false
+    property string apiKeyDraft: ""
+    property string apiKeyDraftProvider: ""
+    property bool apiKeyDirty: false
 
     function save(key, value) {
         PluginService.savePluginData(pluginId, key, value)
@@ -180,9 +183,56 @@ Item {
             inceptionReasoningSummaryWait = !!active.inceptionReasoningSummaryWait
         }
         geminiWebSearch = !!active.geminiWebSearch
+        syncApiKeyDraft()
+    }
+
+    function syncApiKeyDraft() {
+        if (apiKeyDraftProvider !== provider || !apiKeyDirty) {
+            apiKeyDraftProvider = provider
+            apiKeyDraft = saveApiKey ? apiKey : (aiService.sessionApiKey || "")
+            apiKeyDirty = false
+        }
+    }
+
+    function editApiKey(value) {
+        if (value === apiKeyDraft)
+            return
+        apiKeyDraft = value
+        apiKeyDirty = true
+    }
+
+    function commitApiKey() {
+        if (!apiKeyDirty)
+            return
+        const value = apiKeyDraft.trim()
+        apiKeyDirty = false
+        if (saveApiKey) {
+            saveActiveField("apiKey", value)
+            aiService.setSessionApiKey("")
+        } else {
+            aiService.setSessionApiKey(value)
+        }
+        syncApiKeyDraft()
+        Qt.callLater(() => aiService.refreshAvailableModels(true))
+    }
+
+    function setRememberApiKey(remember) {
+        // Capture the editor before saving triggers synchronous settings reloads.
+        const value = apiKeyDraft.trim()
+        apiKeyDirty = false
+        if (!remember)
+            aiService.setSessionApiKey(value)
+        saveActiveFields({saveApiKey: remember, apiKey: remember ? value : ""})
+        if (remember)
+            aiService.setSessionApiKey("")
+        syncApiKeyDraft()
+        Qt.callLater(() => aiService.refreshAvailableModels(true))
     }
 
     function setProvider(providerId) {
+        if (providerId === provider)
+            return
+        commitApiKey()
         provider = providerId
         const active = providers[provider] || normalizedProfile(provider, null)
         applyActiveProfile()
@@ -198,16 +248,23 @@ Item {
     }
 
     function saveActiveField(key, value) {
-        root[key] = value
+        const fields = {}
+        fields[key] = value
+        saveActiveFields(fields)
+    }
+
+    function saveActiveFields(fields) {
+        const selectedProvider = provider
         const nextProviders = Object.assign({}, providers)
-        const current = Object.assign({}, nextProviders[provider] || normalizedProfile(provider, null))
-        current[key] = value
-        nextProviders[provider] = normalizedProfile(provider, current)
+        const current = Object.assign({}, nextProviders[selectedProvider] || normalizedProfile(selectedProvider, null), fields)
+        nextProviders[selectedProvider] = normalizedProfile(selectedProvider, current)
         saveProviders(nextProviders)
 
         // Keep active-provider legacy keys in sync for compatibility and easier debugging.
-        if (["baseUrl", "model", "apiKey", "saveApiKey", "apiKeyEnvVar", "temperature", "maxTokens", "geminiWebSearch"].includes(key)) {
-            save(key, nextProviders[provider][key])
+        for (const key of Object.keys(fields)) {
+            if (["baseUrl", "model", "apiKey", "saveApiKey", "apiKeyEnvVar", "temperature", "maxTokens", "geminiWebSearch"].includes(key)) {
+                save(key, nextProviders[selectedProvider][key])
+            }
         }
     }
 
@@ -287,7 +344,10 @@ Item {
                 DankButton {
                     text: I18n.tr("Close")
                     iconName: "close"
-                    onClicked: closeRequested()
+                    onClicked: {
+                        commitApiKey()
+                        closeRequested()
+                    }
                 }
             }
 
@@ -594,18 +654,28 @@ Item {
                                 DankTextField {
                                     id: apiKeyField
                                     width: parent.width
-                                    text: root.saveApiKey ? root.apiKey : aiService.sessionApiKey
+                                    objectName: "apiKeyField"
+                                    text: root.apiKeyDraft
                                     echoMode: TextInput.Password
                                     placeholderText: root.provider === "ollama" ? I18n.tr("Not required for local Ollama") : I18n.tr("Enter API key")
                                     leftIconName: root.saveApiKey ? "lock" : "vpn_key"
-                                    onEditingFinished: {
-                                        if (root.saveApiKey) {
-                                            saveActiveField("apiKey", text.trim())
-                                        } else {
-                                            aiService.sessionApiKey = text.trim()
-                                        }
-                                        Qt.callLater(() => aiService.refreshAvailableModels(true))
-                                    }
+                                    onTextEdited: root.editApiKey(text)
+                                    onEditingFinished: root.commitApiKey()
+                                }
+                                DankButton {
+                                    text: I18n.tr("Save key")
+                                    iconName: "save"
+                                    enabled: root.apiKeyDirty
+                                    onClicked: root.commitApiKey()
+                                }
+                                StyledText {
+                                    width: parent.width
+                                    text: root.apiKeyDirty
+                                        ? I18n.tr("Press Enter, leave the field, or choose Save key to apply your changes.")
+                                        : (root.saveApiKey ? I18n.tr("Key saved for this provider.") : I18n.tr("Key used for this session only."))
+                                    color: Theme.surfaceVariantText
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    wrapMode: Text.WordWrap
                                 }
 
                                 // Env Var
@@ -642,12 +712,7 @@ Item {
                                     }
                                     DankToggle {
                                         checked: root.saveApiKey
-                                        onToggled: checked => {
-                                            saveActiveField("saveApiKey", checked)
-                                            if (checked && aiService.sessionApiKey) {
-                                                saveActiveField("apiKey", aiService.sessionApiKey)
-                                            }
-                                        }
+                                        onToggled: checked => root.setRememberApiKey(checked)
                                     }
                                 }
                             }
