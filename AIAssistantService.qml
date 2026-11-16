@@ -5,6 +5,7 @@ import Quickshell.Io
 import qs.Common
 import qs.Services
 import "./AIApiAdapters.js" as AIApiAdapters
+import "./ConversationStore.js" as ConversationStore
 
 Item {
     id: root
@@ -21,7 +22,16 @@ Item {
     readonly property string sessionPath: baseDir + "/session.json"
     property bool sessionLoaded: false
     property string providerConfigHash: ""
-    property var sessionsByConfig: ({})
+    property var conversationGroups: ({})
+    property var conversations: []
+    property string activeConversationId: ""
+    property string conversationDraft: ""
+    property bool switchingConversation: false
+    property int conversationSerial: 0
+    property string historyError: ""
+    property var pendingSessionData: null
+    readonly property bool conversationBusy: !sessionLoaded || isStreaming || chatFetcher.running
+    signal conversationChanged()
     property bool suppressConfigChange: false
     property int maxStoredMessages: 50
 
@@ -70,6 +80,16 @@ Item {
     onProviderChanged: handleConfigChanged()
     onBaseUrlChanged: handleConfigChanged()
     onSessionApiKeyChanged: if (!suppressConfigChange) refreshAvailableModels(true)
+    onConversationDraftChanged: {
+        if (sessionLoaded && !switchingConversation)
+            draftSaveTimer.restart();
+    }
+
+    Timer {
+        id: draftSaveTimer
+        interval: 400
+        onTriggered: root.saveSession()
+    }
 
     function setSessionApiKey(value) {
         const next = Object.assign({}, sessionApiKeys);
@@ -292,71 +312,61 @@ Item {
         onLoaded: {
             try {
                 const data = JSON.parse(text());
-                if (data.version >= 3 && data.sessions && typeof data.sessions === "object") {
-                    sessionsByConfig = data.sessions;
-                } else if (data.version === 2 && data.sessions && typeof data.sessions === "object") {
-                    sessionsByConfig = migrateModelScopedSessions(data.sessions);
-                } else {
-                    const legacyHash = data.providerConfigHash || computeConfigHash();
-                    const separator = legacyHash.lastIndexOf("|");
-                    const historyHash = (legacyHash.match(/\|/g) || []).length >= 2
-                        ? legacyHash.substring(0, separator)
-                        : legacyHash;
-                    sessionsByConfig = {};
-                    sessionsByConfig[historyHash] = Array.isArray(data.messages) ? data.messages : [];
+                ConversationStore.restore(data, computeConfigHash(), maxStoredMessages);
+                if (data.version !== 4) {
+                    // Keep the original file for rollback before writing v4.
+                    pendingSessionData = data;
+                    historyBackupProcess.command = ["cp", "--no-clobber", "--", sessionPath,
+                        baseDir + "/session-before-tabs-" + Date.now() + ".json"];
+                    historyBackupProcess.running = true;
+                    return;
                 }
+                restoreConversations(data);
             } catch (e) {
-                sessionsByConfig = {};
+                sessionLoaded = false;
+                historyError = "Unable to load saved conversations. History has not been overwritten.";
             }
+        }
 
+        onLoadFailed: error => {
+            if (error !== FileViewError.FileNotFound) {
+                historyError = "Unable to read saved conversations. History has not been overwritten.";
+                return;
+            }
             sessionLoaded = true;
             switchConfigHistory(computeConfigHash());
         }
+    }
 
-        onLoadFailed: {
-            sessionsByConfig = {};
-            sessionLoaded = true;
-            switchConfigHistory(computeConfigHash());
+    Process {
+        id: historyBackupProcess
+        onExited: code => {
+            const data = root.pendingSessionData;
+            root.pendingSessionData = null;
+            if (code !== 0 || !data) {
+                root.historyError = "Unable to back up saved history. History has not been overwritten.";
+                return;
+            }
+            root.restoreConversations(data);
         }
+    }
+
+    function restoreConversations(data) {
+        const restored = ConversationStore.restore(data, computeConfigHash(), maxStoredMessages);
+        conversationGroups = restored;
+        providerConfigHash = "";
+        activeConversationId = "";
+        historyError = "";
+        sessionLoaded = true;
+        switchConfigHistory(computeConfigHash());
     }
 
     function computeConfigHash() {
         return provider + "|" + baseUrl;
     }
 
-    function latestMessageTimestamp(messages) {
-        if (!Array.isArray(messages) || messages.length === 0)
-            return 0;
-        let latest = 0;
-        for (let i = 0; i < messages.length; i++)
-            latest = Math.max(latest, Number(messages[i]?.timestamp || 0));
-        return latest;
-    }
-
-    function migrateModelScopedSessions(oldSessions) {
-        const migrated = {};
-        const selectedLegacyHash = provider + "|" + baseUrl + "|" + model;
-        const selectedTargets = {};
-        const keys = Object.keys(oldSessions || {});
-        for (let i = 0; i < keys.length; i++) {
-            const oldHash = keys[i];
-            const separator = oldHash.lastIndexOf("|");
-            const nextHash = separator >= 0 ? oldHash.substring(0, separator) : oldHash;
-            const messages = Array.isArray(oldSessions[oldHash]) ? oldSessions[oldHash] : [];
-            const shouldReplace = !Array.isArray(migrated[nextHash])
-                || oldHash === selectedLegacyHash
-                || (!selectedTargets[nextHash]
-                    && latestMessageTimestamp(messages) > latestMessageTimestamp(migrated[nextHash]));
-            if (shouldReplace) {
-                migrated[nextHash] = messages;
-                selectedTargets[nextHash] = oldHash === selectedLegacyHash;
-            }
-        }
-        return migrated;
-    }
-
     function persistCurrentMessagesForHash(configHash) {
-        if (!configHash)
+        if (!configHash || !activeConversationId)
             return;
         const msgs = [];
         for (let i = 0; i < messagesModel.count; i++) {
@@ -372,22 +382,132 @@ Item {
             }
         }
         const capped = msgs.length > maxStoredMessages ? msgs.slice(msgs.length - maxStoredMessages) : msgs;
-        const nextSessions = Object.assign({}, sessionsByConfig || {});
-        nextSessions[configHash] = capped;
-        sessionsByConfig = nextSessions;
+        const group = conversationGroups[configHash];
+        if (!group)
+            return;
+        const tabs = group.tabs.map(tab => {
+            if (tab.id !== activeConversationId)
+                return tab;
+            return Object.assign({}, tab, {messages: capped, draft: conversationDraft,
+                title: tab.customTitle || tab.title !== "New chat" ? tab.title
+                    : ConversationStore.titleFromMessages(capped, tab.title)});
+        });
+        const groups = Object.assign({}, conversationGroups);
+        groups[configHash] = {activeId: activeConversationId, tabs: tabs};
+        conversationGroups = groups;
+        if (configHash === providerConfigHash)
+            publishConversations(tabs);
+    }
+
+    function publishConversations(tabs) {
+        const summaries = tabs.map(tab => ({id: tab.id, title: tab.title}));
+        // Do not recreate tab editors whenever only messages or drafts change.
+        if (JSON.stringify(summaries) !== JSON.stringify(conversations))
+            conversations = summaries;
+    }
+
+    function newConversation() {
+        let id;
+        do {
+            id = "chat-" + Date.now() + "-" + conversationSerial++;
+        } while (conversations.some(tab => tab.id === id));
+        return {id: id, title: "New chat", customTitle: false, messages: [], draft: ""};
+    }
+
+    function loadConversation(tab) {
+        switchingConversation = true;
+        activeConversationId = tab.id;
+        conversationDraft = tab.draft || "";
+        loadMessages(tab.messages || []);
+        isOnline = false;
+        switchingConversation = false;
+        conversationChanged();
+    }
+
+    function createConversation() {
+        if (conversationBusy)
+            return false;
+        saveSession();
+        const tab = newConversation();
+        const tabs = conversationGroups[providerConfigHash].tabs.concat([tab]);
+        const groups = Object.assign({}, conversationGroups);
+        groups[providerConfigHash] = {activeId: tab.id, tabs: tabs};
+        conversationGroups = groups;
+        publishConversations(tabs);
+        loadConversation(tab);
+        saveSession();
+        return true;
+    }
+
+    function selectConversation(id) {
+        if (conversationBusy || id === activeConversationId)
+            return false;
+        const tab = conversations.find(item => item.id === id);
+        if (!tab)
+            return false;
+        saveSession();
+        // saveSession refreshes metadata, so use the current stored entry.
+        loadConversation(conversationGroups[providerConfigHash].tabs.find(item => item.id === id));
+        saveSession();
+        return true;
+    }
+
+    function renameConversation(id, title) {
+        const name = String(title || "").trim().slice(0, 80);
+        if (conversationBusy || !name || !conversations.some(tab => tab.id === id))
+            return false;
+        saveSession();
+        const tabs = conversationGroups[providerConfigHash].tabs.map(tab => tab.id === id ? Object.assign({}, tab, {title: name, customTitle: true}) : tab);
+        const groups = Object.assign({}, conversationGroups);
+        groups[providerConfigHash] = {activeId: activeConversationId, tabs: tabs};
+        conversationGroups = groups;
+        publishConversations(tabs);
+        saveSession();
+        return true;
+    }
+
+    function closeConversation(id) {
+        if (conversationBusy || conversations.length <= 1)
+            return false;
+        const index = conversations.findIndex(tab => tab.id === id);
+        if (index < 0)
+            return false;
+        saveSession();
+        const wasActive = id === activeConversationId;
+        const tabs = conversationGroups[providerConfigHash].tabs.filter(tab => tab.id !== id);
+        const next = wasActive ? tabs[Math.min(index, tabs.length - 1)] : tabs.find(tab => tab.id === activeConversationId);
+        const groups = Object.assign({}, conversationGroups);
+        groups[providerConfigHash] = {activeId: next.id, tabs: tabs};
+        conversationGroups = groups;
+        publishConversations(tabs);
+        if (wasActive)
+            loadConversation(next);
+        saveSession();
+        return true;
     }
 
     function switchConfigHistory(nextHash) {
         if (!nextHash)
             return;
 
+        if (isStreaming)
+            cancel();
+
         const previousHash = providerConfigHash;
         if (previousHash && previousHash !== nextHash)
             persistCurrentMessagesForHash(previousHash)
 
         providerConfigHash = nextHash;
-        const nextMessages = (sessionsByConfig && Array.isArray(sessionsByConfig[nextHash])) ? sessionsByConfig[nextHash] : [];
-        loadMessages(nextMessages);
+        let group = conversationGroups[nextHash];
+        if (!group) {
+            const tab = newConversation();
+            group = {activeId: tab.id, tabs: [tab]};
+            const groups = Object.assign({}, conversationGroups);
+            groups[nextHash] = group;
+            conversationGroups = groups;
+        }
+        publishConversations(group.tabs);
+        loadConversation(group.tabs.find(tab => tab.id === group.activeId) || group.tabs[0]);
         saveSession();
     }
 
@@ -421,6 +541,8 @@ Item {
     }
 
     function saveSession() {
+        if (switchingConversation)
+            return;
         const currentHash = providerConfigHash || computeConfigHash();
         persistCurrentMessagesForHash(currentHash)
 
@@ -428,14 +550,16 @@ Item {
             return;
 
         const data = {
-            version: 3,
+            version: 4,
             providerConfigHash: currentHash,
-            sessions: sessionsByConfig || {}
+            conversationGroups: conversationGroups || {}
         };
         sessionFile.setText(JSON.stringify(data, null, 2));
     }
 
     function clearHistory(saveNow) {
+        if (conversationBusy)
+            return false;
         messagesModel.clear();
         isStreaming = false;
         activeStreamId = "";
@@ -444,6 +568,8 @@ Item {
         lastUserText = "";
         if (saveNow)
             saveSession();
+        conversationChanged();
+        return true;
     }
 
     function resolveApiKey() {
@@ -499,8 +625,7 @@ Item {
     function sendMessage(text) {
         if (!text || text.trim().length === 0)
             return;
-        if (isStreaming && chatFetcher.running) {
-            markError(activeStreamId, "Please wait until the current response finishes.");
+        if (conversationBusy) {
             return;
         }
         startStreaming(text.trim(), true);

@@ -113,6 +113,15 @@ With `DMS_LOG_LEVEL=debug`, watch for:
 
 ## File Modification Guidelines
 
+### Conversation tabs (1.8.0, #10)
+
+- `ConversationTabs.qml` provides the Notepad-style strip. New chat creates a tab; Clear current chat clears only the active tab; closing requires UI confirmation and must leave at least one tab per provider endpoint.
+- `conversationGroups` stores `{activeId, tabs}` per `provider|baseUrl`; `conversations` publishes only stable tab summaries. Do not republish summaries for message/draft-only changes, which would destroy inline rename editors.
+- Store unsent text in `conversationDraft`; persist the outgoing tab before switching. Message lists reset follow-bottom only on explicit `conversationChanged`.
+- Tab operations use `conversationBusy` (including process shutdown and history loading), preventing stream chunks from being routed to another tab. Provider changes cancel a running response before changing its history context.
+- Session format v4 lives in the existing session file. `ConversationStore.js` migrates v1/v3 histories and retains every v2 per-model history as a separate tab. Back up the old file before migration; reject invalid/unknown files without overwriting them.
+- `tests/conversation-persistence.test.cjs` loads the real service with model discovery disabled, uses only a temporary state directory, and verifies migration, two-process restoration, missing files, and corrupt-file preservation. Tab UI tests use real mouse/key events with minimal Theme/widget fixtures.
+
 ### Credential editing and clear history (2026-11-15)
 
 - Keep `apiKeyDraft` independent of settings reloads while dirty; commit on Enter, field blur, explicit Save key, or provider change. Do not persist on each keystroke or log credentials.

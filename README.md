@@ -6,9 +6,15 @@ Chat follows incoming responses while you are at the bottom. Scroll up with the 
 
 To change an API key, edit it in Settings and press Enter, leave the field, or choose **Save key**. Unsaved edits survive settings refreshes. **Remember API Key** saves the key for that provider; turning it off keeps the current key in memory for the session and removes its saved copy. Session keys stay separate for each provider.
 
-Choose **More → Clear current chat** to remove the active conversation's messages after confirmation. Other provider conversations are kept. Stop any active response before clearing.
+Use the conversation tabs below the header to keep separate chats, following DMS Notepad's layout. Click **+** (or press **Ctrl+N**) for a new tab, double-click a tab title to rename it, and use its **×** button to close it after confirmation. The last tab stays available. Long tab lists scroll horizontally, with left/right buttons for navigating overflow.
+
+Each tab retains its own messages and unsent prompt. Tab names and the active selection survive reloads. Each provider endpoint has its own tab group; changing models stays in the current chat. Existing saved histories migrate automatically, with a `session-before-tabs-*.json` backup alongside the session file before the format changes. Stop an active response before changing tabs.
+
+Choose **More → Clear current chat** to remove the active tab's messages after confirmation. Other tabs and provider conversations are kept.
 
 The scrolling regression checks run with `node --test tests/scrolling.test.cjs` (requires Qt 6 Quick Test). They use an isolated QML scene and no provider credentials.
+
+Run `node --test tests/*.test.cjs` for all checks, including conversation migration, tab controls, history/draft isolation, and real session-file save/reload in temporary test directories. These tests do not modify your installed settings or chats and make no provider requests.
 
 ## Features
 
@@ -220,10 +226,11 @@ Example configuration:
 
 Chat history is saved to `~/.local/state/DankMaterialShell/plugins/aiAssistant/session.json`:
 
-- Automatically saved after each message
-- Limited to last 50 messages (configurable in code)
-- Cleared when chat history is manually cleared
-- Invalidated when provider settings change
+- Automatically saved after each message and after tab actions; unsent drafts are saved after a short idle interval
+- Limited to the last 50 messages per conversation (configurable in code)
+- Clear current chat affects only that tab; confirmed closing removes only the selected conversation
+- Provider endpoints keep separate tab groups; model changes preserve the current conversation
+- Earlier session formats are backed up before migration to format v4. Invalid or unsupported files are left untouched
 
 ## Troubleshooting
 

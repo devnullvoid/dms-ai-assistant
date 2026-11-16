@@ -13,7 +13,7 @@ Item {
     implicitWidth: 480
     implicitHeight: 640
 
-    Component.onCompleted: console.info("[AIAssistant UI Plugin] ready, service:", aiService)
+    Component.onCompleted: composer.text = aiService.conversationDraft || ""
     onAiServiceChanged: console.info("[AIAssistant UI Plugin] service changed:", aiService)
     onVisibleChanged: {
         if (!visible) {
@@ -29,6 +29,7 @@ Item {
     property bool showSettingsMenu: false
     property bool showOverflowMenu: false
     property bool showNewChatConfirm: false
+    property string pendingCloseConversationId: ""
     property string transientHint: ""
     property real nowMs: Date.now()
     readonly property real panelTransparency: SettingsData.popupTransparency
@@ -53,27 +54,59 @@ Item {
     }
 
     function startNewChat() {
-        if (aiService.isStreaming ?? false) {
+        if (aiService.conversationBusy) {
             showTemporaryHint(I18n.tr("Stop current response first."))
             return
         }
+        if (aiService.createConversation())
+            Qt.callLater(() => composer.forceActiveFocus())
+    }
 
+    function requestClearHistory() {
+        if (aiService.conversationBusy)
+            return
+        pendingCloseConversationId = ""
         if ((aiService.messageCount ?? 0) > 0) {
             showNewChatConfirm = true
             return
         }
-
         aiService.clearHistory(true)
     }
 
+    function requestCloseConversation(id) {
+        if (aiService.conversationBusy)
+            return
+        pendingCloseConversationId = id
+        showNewChatConfirm = true
+    }
+
     function confirmClearHistory() {
-        if (aiService.isStreaming ?? false) {
+        if (aiService.conversationBusy) {
             showTemporaryHint(I18n.tr("Stop current response first."))
             return
         }
-        aiService.clearHistory(true)
+        if (pendingCloseConversationId) {
+            aiService.closeConversation(pendingCloseConversationId)
+            pendingCloseConversationId = ""
+        } else {
+            aiService.clearHistory(true)
+            showTemporaryHint(I18n.tr("Current chat history cleared."))
+        }
         showNewChatConfirm = false
-        showTemporaryHint(I18n.tr("Current chat history cleared."))
+    }
+
+    Connections {
+        target: root.aiService
+        function onConversationChanged() {
+            root.showNewChatConfirm = false;
+            root.pendingCloseConversationId = "";
+            composer.text = root.aiService.conversationDraft || "";
+        }
+        function onConversationDraftChanged() {
+            const draft = root.aiService.conversationDraft || "";
+            if (composer.text !== draft)
+                composer.text = draft;
+        }
     }
 
     function sendCurrentMessage() {
@@ -83,6 +116,8 @@ Item {
             console.warn("[AIAssistant UI] service unavailable");
             return;
         }
+        if (aiService.conversationBusy)
+            return;
         console.log("[AIAssistant UI] sendCurrentMessage");
         aiService.sendMessage(composer.text.trim());
         composer.text = "";
@@ -236,22 +271,44 @@ Item {
             }
 
             DankActionButton {
-                iconName: "add"
-                tooltipText: I18n.tr("New chat")
-                enabled: !(aiService.isStreaming ?? false)
-                onClicked: startNewChat()
-            }
-
-            DankActionButton {
                 iconName: "more_vert"
                 tooltipText: I18n.tr("More")
                 onClicked: showOverflowMenu = !showOverflowMenu
             }
         }
 
+        ConversationTabs {
+            id: conversationTabs
+            width: parent.width
+            height: implicitHeight
+            conversations: aiService.conversations || []
+            activeId: aiService.activeConversationId || ""
+            enabled: !aiService.conversationBusy
+            onSelected: id => {
+                if (aiService.selectConversation(id))
+                    Qt.callLater(() => composer.forceActiveFocus());
+            }
+            onRenamed: (id, title) => {
+                if (aiService.renameConversation(id, title))
+                    Qt.callLater(() => composer.forceActiveFocus());
+            }
+            onCloseRequested: id => root.requestCloseConversation(id)
+            onNewRequested: root.startNewChat()
+        }
+
+        StyledText {
+            id: historyErrorLabel
+            width: parent.width
+            visible: (aiService.historyError || "").length > 0
+            text: I18n.tr(aiService.historyError || "")
+            color: Theme.error
+            wrapMode: Text.Wrap
+        }
+
         Rectangle {
             width: parent.width
-            height: parent.height - headerRow.height - composerRow.height - Theme.spacingM * 3
+            height: Math.max(0, parent.height - headerRow.height - conversationTabs.height - composerRow.height
+                - (historyErrorLabel.visible ? historyErrorLabel.height : 0) - Theme.spacingM * (historyErrorLabel.visible ? 4 : 3))
             radius: Theme.cornerRadius
             color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, root.panelTransparency)
             border.color: Theme.surfaceVariantAlpha
@@ -391,6 +448,10 @@ Item {
 
                             TextArea {
                                 id: composer
+                                onTextChanged: {
+                                    if (text !== root.aiService.conversationDraft)
+                                        root.aiService.conversationDraft = text;
+                                }
                                 implicitWidth: scrollView.availableWidth
                                 wrapMode: TextArea.Wrap
                                 background: Rectangle { color: "transparent" }
@@ -450,7 +511,7 @@ Item {
                         DankActionButton {
                             iconName: "send"
                             tooltipText: I18n.tr("Send")
-                            enabled: composer.text && composer.text.trim().length > 0 && !aiService.isStreaming
+                            enabled: composer.text && composer.text.trim().length > 0 && !aiService.conversationBusy
                             visible: !aiService.isStreaming
                             buttonSize: 36
                             iconSize: 18
@@ -557,10 +618,10 @@ Item {
                     text: I18n.tr("Clear current chat")
                     iconName: "delete_sweep"
                     width: parent.width
-                    enabled: root.hasMessages && !(aiService.isStreaming ?? false)
+                    enabled: root.hasMessages && !aiService.conversationBusy
                     onClicked: {
                         showOverflowMenu = false
-                        startNewChat()
+                        requestClearHistory()
                     }
                 }
 
@@ -602,11 +663,16 @@ Item {
         }
 
         Rectangle {
+            anchors.fill: parent
+            color: Theme.withAlpha(Theme.background, 0.6)
+        }
+
+        Rectangle {
             width: Math.min(parent.width * 0.88, 360)
             height: confirmColumn.height + Theme.spacingL * 2
             anchors.centerIn: parent
             radius: Theme.cornerRadius
-            color: Theme.withAlpha(Theme.surfaceContainer, Theme.popupTransparency)
+            color: Theme.withAlpha(Theme.surfaceContainer, 1)
             border.width: 1
             border.color: Theme.outlineMedium
 
@@ -623,7 +689,7 @@ Item {
                 spacing: Theme.spacingM
 
                 StyledText {
-                    text: I18n.tr("Clear current chat history?")
+                    text: pendingCloseConversationId ? I18n.tr("Close conversation?") : I18n.tr("Clear current chat history?")
                     color: Theme.surfaceText
                     font.pixelSize: Theme.fontSizeLarge
                     font.weight: Font.Medium
@@ -632,7 +698,8 @@ Item {
                 }
 
                 StyledText {
-                    text: I18n.tr("This removes messages from the current conversation only. Other provider chats are kept.")
+                    text: pendingCloseConversationId ? I18n.tr("This deletes the conversation and its messages. Other tabs are kept.")
+                        : I18n.tr("This removes messages from the current conversation only. Other tabs are kept.")
                     color: Theme.surfaceTextMedium
                     font.pixelSize: Theme.fontSizeSmall
                     width: parent.width
@@ -649,7 +716,7 @@ Item {
                     }
 
                     DankButton {
-                        text: I18n.tr("Clear history")
+                        text: pendingCloseConversationId ? I18n.tr("Close conversation") : I18n.tr("Clear history")
                         iconName: "keyboard_return"
                         onClicked: {
                             confirmClearHistory()

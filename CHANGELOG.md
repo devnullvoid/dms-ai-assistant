@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-15
+
+### Added
+
+- Conversation tabs inspired by DMS Notepad, with a horizontally scrolling tab strip, a New chat button, double-click renaming, and confirmed closing (#10).
+- Separate message histories and unsent drafts for each tab, persistent active-tab selection, and automatic titles from the first prompt. Each provider endpoint retains its own tab group; model switching stays in the current conversation.
+
+### Changed
+
+- New chat and Ctrl+N create a tab without clearing the current conversation. More → Clear current chat remains available for clearing only the active tab.
+- Saved conversations use session format v4. Existing provider histories are backed up and migrate automatically; older per-model histories are preserved as separate tabs. Invalid or unsupported history files are left untouched.
+- Tab changes are blocked while a response is running; stop the response before switching conversations.
+- Close/clear confirmations use an opaque surface and dimmed backdrop. Overflowing tab strips have left/right scroll buttons outside the scrolling content.
+
 ## [1.7.2] - 2026-11-15
 
 ### Fixed

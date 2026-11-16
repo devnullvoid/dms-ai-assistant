@@ -67,6 +67,11 @@ Item {
     // (which can be significantly taller than the streaming plain text) is visible.
     Connections {
         target: root.aiService
+        ignoreUnknownSignals: true
+        function onConversationChanged() {
+            root.stickToBottom = true;
+            root.requestFollow();
+        }
         function onIsStreamingChanged() {
             if (root.aiService && !root.aiService.isStreaming && root.stickToBottom) {
                 scrollSettleTimer.restart();

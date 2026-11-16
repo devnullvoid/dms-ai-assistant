@@ -21,7 +21,9 @@ test('key editing and history isolation with synchronous settings reloads', () =
         const serviceMethods = methods(service);
         const selected = ['defaultsForProvider', 'normalizedProfile', 'mergedProviders', 'syncLegacySnapshot',
             'loadSettings', 'setSessionApiKey', 'resolveApiKey', 'computeConfigHash', 'persistCurrentMessagesForHash',
-            'switchConfigHistory', 'handleConfigChanged', 'loadMessages', 'saveSession', 'clearHistory', 'findLastUserText'];
+            'switchConfigHistory', 'handleConfigChanged', 'loadMessages', 'saveSession', 'clearHistory', 'findLastUserText',
+            'restoreConversations', 'publishConversations', 'newConversation', 'loadConversation', 'createConversation',
+            'selectConversation', 'renameConversation', 'closeConversation', 'cancel', 'markError'];
         // Exercise actual controller methods and property bindings, with no
         // provider network calls or writes to the user's settings/history.
         const serviceProperties = service.match(/^    (?:readonly )?property [^\n]+/gm).join('\n');
@@ -31,10 +33,13 @@ import QtCore
 import qs.Common
 import qs.Services
 import "TestEnvironment.js" as Quickshell
+import "ConversationStore.js" as ConversationStore
 Item {
     id: root
     ${serviceProperties}
     property alias persistedSession: sessionFile.savedText
+    signal conversationChanged()
+    QtObject { id: chatFetcher; property bool running: false }
     QtObject { id: sessionFile; property string path: "fixture"; property string savedText: ""; function setText(text) { savedText = text; } }
     function refreshAvailableModels(force) {}
     onProviderChanged: handleConfigChanged()
@@ -48,9 +53,11 @@ import qs.Common
 Item {
     required property var aiService
     property bool showNewChatConfirm: false
+    property string pendingCloseConversationId: ""
     property string transientHint: ""
     QtObject { id: hintResetTimer; function restart() {} }
-    ${['showTemporaryHint', 'startNewChat', 'confirmClearHistory'].map(name => chatMethods.get(name)).join('\n')}
+    QtObject { id: composer; function forceActiveFocus() {} }
+    ${['showTemporaryHint', 'startNewChat', 'requestClearHistory', 'requestCloseConversation', 'confirmClearHistory'].map(name => chatMethods.get(name)).join('\n')}
 }`);
         const fieldStart = settings.indexOf('                                DankTextField {\n                                    id: apiKeyField');
         const fieldEnd = settings.indexOf('\n                                DankButton {', fieldStart);
@@ -102,6 +109,7 @@ QtObject {
     }
 }`);
         fs.copyFileSync(path.join(__dirname, 'tst_Credentials.qml'), path.join(fixture, 'tst_Credentials.qml'));
+        fs.copyFileSync(path.join(repo, 'ConversationStore.js'), path.join(fixture, 'ConversationStore.js'));
         const result = spawnSync(process.env.QML_TEST_RUNNER || '/usr/lib/qt6/bin/qmltestrunner',
             ['-input', fixture, '-import', fixture, '-o', '-,txt'], {
                 encoding: 'utf8', timeout: 30000,
