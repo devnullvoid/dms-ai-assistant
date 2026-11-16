@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-15
+
+### Added
+
+- Named model presets per provider, seeded with a Default preset from existing settings (#10). Presets share the provider's credentials and endpoint.
+- Save as preset, update, duplicate, rename, and confirmed deletion in Settings. The chat header selects presets and shows the active model; Custom opens the existing model editor.
+- Per-conversation preset selection and optional custom overrides. Settings experiments remain Custom until explicitly saved; updating a preset updates following tabs while preserving deliberate overrides.
+
+### Changed
+
+- Removing a preset moves affected tabs to the default preset without deleting messages or drafts. The first preset remains available as the fallback.
+- Preset changes are blocked during responses. Provider-specific generation options, including Gemini web search and Inception reasoning settings, are included in presets and outgoing requests.
+
 ## [1.8.0] - 2026-11-15
 
 ### Added

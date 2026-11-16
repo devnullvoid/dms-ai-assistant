@@ -33,7 +33,8 @@ function restore(data, fallbackConfig, limit) {
                 ids[tab.id] = true;
                 return {id: String(tab.id), title: String(tab.title || "New chat").slice(0, 80),
                     customTitle: !!tab.customTitle, messages: storedMessages(tab.messages, limit),
-                    draft: String(tab.draft || "")};
+                    draft: String(tab.draft || ""), presetId: String(tab.presetId || ""),
+                    modelOverrides: tab.modelOverrides && typeof tab.modelOverrides === "object" ? Object.assign({}, tab.modelOverrides) : null};
             });
             groups[key] = {activeId: ids[group.activeId] ? group.activeId : tabs[0].id, tabs: tabs};
         }

@@ -14,7 +14,7 @@ test('real service migrates a session file and restores tabs in a second process
         const refresh = service.match(/^    function refreshAvailableModels\(force\) \{[\s\S]*?^    \}/m)[0];
         service = service.replace(refresh, '    function refreshAvailableModels(force) {}');
         fs.writeFileSync(path.join(fixture, 'AIAssistantService.qml'), service);
-        for (const file of ['ConversationStore.js', 'AIApiAdapters.js'])
+        for (const file of ['ConversationStore.js', 'AIApiAdapters.js', 'ModelPresets.js'])
             fs.copyFileSync(path.join(repo, file), path.join(fixture, file));
         fs.mkdirSync(path.join(fixture, 'Common'));
         fs.writeFileSync(path.join(fixture, 'Common/qmldir'), 'module qs.Common\nsingleton Paths 1.0 Paths.qml\n');
@@ -23,14 +23,27 @@ test('real service migrates a session file and restores tabs in a second process
         fs.writeFileSync(path.join(fixture, 'Services/qmldir'), 'module qs.Services\nsingleton PluginService 1.0 PluginService.qml\n');
         fs.writeFileSync(path.join(fixture, 'Services/PluginService.qml'), `pragma Singleton
 import QtQuick
+import Quickshell
+import Quickshell.Io
 QtObject {
     signal pluginDataChanged(string pluginId)
-    function loadPluginData(id, key, fallback) {
-        if (key === "provider") return "gemini";
-        if (key === "providers") return {gemini: {baseUrl: "https://fixture.invalid", model: "fixture"}};
-        return fallback;
+    property var data: null
+    property FileView config: FileView { path: Quickshell.env("DMS_AI_TEST_CONFIG"); blockLoading: true; blockWrites: true }
+    function ensureLoaded() {
+        if (data === null) data = JSON.parse(config.text());
     }
-    function savePluginData(id, key, value) { throw new Error("Unexpected settings write"); }
+    function loadPluginData(id, key, fallback) {
+        ensureLoaded();
+        return data[key] === undefined ? fallback : data[key];
+    }
+    function savePluginData(id, key, value) {
+        ensureLoaded();
+        const next = Object.assign({}, data);
+        next[key] = value;
+        data = next;
+        config.setText(JSON.stringify(data));
+        pluginDataChanged(id);
+    }
 }`);
         fs.writeFileSync(path.join(fixture, 'shell.qml'), `import QtQuick
 import Quickshell
@@ -56,6 +69,8 @@ ShellRoot {
                 if (service.messageCount !== 1 || service.messagesModel.get(0).content !== "legacy prompt") throw new Error("Legacy history lost");
                 if (!service.createConversation()) throw new Error("Create failed");
                 service.renameConversation(service.activeConversationId, "Research");
+                service.setCurrentModel("preset-fixture");
+                if (!service.createModelPreset("Research model")) throw new Error("Preset create failed");
                 service.messagesModel.append({role: "user", content: "second prompt", id: "second", timestamp: 2, status: "ok"});
                 service.conversationDraft = "unsent draft";
                 service.saveSession();
@@ -63,8 +78,10 @@ ShellRoot {
                 if (service.conversations.length !== 2 || service.conversationDraft !== "unsent draft") throw new Error("Tabs/draft not restored");
                 if (service.conversations.find(tab => tab.id === service.activeConversationId).title !== "Research") throw new Error("Title/selection not restored");
                 if (service.messagesModel.get(0).content !== "second prompt") throw new Error("Wrong active history");
+                if (service.model !== "preset-fixture" || service.activePresetName !== "Research model" || service.customModelSettings) throw new Error("Preset not restored");
                 service.selectConversation(service.conversations[0].id);
                 if (service.messagesModel.get(0).content !== "legacy prompt") throw new Error("Migrated history not retained");
+                if (service.model !== "fixture" || service.activePresetName !== "Default") throw new Error("Tab default preset not restored");
             } else {
                 if (service.messageCount !== 0 || service.conversations.length !== 1 || service.historyError) throw new Error("Missing session file was not initialized");
             }
@@ -80,6 +97,8 @@ ShellRoot {
 }`);
         const state = path.join(fixture, 'state');
         fs.mkdirSync(state);
+        const config = path.join(fixture, 'config.json');
+        fs.writeFileSync(config, JSON.stringify({provider: 'gemini', providers: {gemini: {baseUrl: 'https://fixture.invalid', model: 'fixture'}}}));
         fs.writeFileSync(path.join(state, 'session.json'), JSON.stringify({version: 3, sessions: {
             'gemini|https://fixture.invalid': [{role: 'user', content: 'legacy prompt', id: 'legacy', timestamp: 1, status: 'ok'}],
         }}));
@@ -89,7 +108,8 @@ ShellRoot {
             const marker = path.join(fixture, phase + '.txt');
             const result = spawnSync('qs', ['-p', path.join(fixture, 'shell.qml')], {
                 encoding: 'utf8', timeout: 15000,
-                env: {...process.env, QT_QPA_PLATFORM: 'offscreen', DMS_AI_TEST_STATE: state, DMS_AI_TEST_RESULT: marker, DMS_AI_TEST_PHASE: phase},
+                env: {...process.env, QT_QPA_PLATFORM: 'offscreen', DMS_AI_TEST_STATE: state, DMS_AI_TEST_RESULT: marker,
+                    DMS_AI_TEST_PHASE: phase, DMS_AI_TEST_CONFIG: config},
             });
             assert.ifError(result.error);
             assert.equal(result.status, 0, result.stdout + result.stderr);

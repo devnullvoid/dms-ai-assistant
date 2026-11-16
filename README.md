@@ -12,6 +12,14 @@ Each tab retains its own messages and unsent prompt. Tab names and the active se
 
 Choose **More → Clear current chat** to remove the active tab's messages after confirmation. Other tabs and provider conversations are kept.
 
+## Model presets
+
+Each provider starts with a **Default** preset based on your existing model settings. In Settings, choose a model and generation options, enter a preset name, then choose **Save as preset**. Use **Update preset** to replace the selected preset explicitly, **Duplicate** for a copy, or **Rename** to change its name.
+
+The chat-header selector shows your presets and their models. **Custom…** opens Settings for an ad hoc model/settings combination. Editing generation settings marks the current selection **Custom** until you save or choose a preset again. Each conversation tab remembers its preset and custom overrides across reloads.
+
+Presets share the provider's API key and endpoint. Deleting a preset requires confirmation and moves its tabs to the first/default preset, preserving their histories and drafts. Stop the current response before changing presets.
+
 The scrolling regression checks run with `node --test tests/scrolling.test.cjs` (requires Qt 6 Quick Test). They use an isolated QML scene and no provider credentials.
 
 Run `node --test tests/*.test.cjs` for all checks, including conversation migration, tab controls, history/draft isolation, and real session-file save/reload in temporary test directories. These tests do not modify your installed settings or chats and make no provider requests.

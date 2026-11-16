@@ -35,10 +35,29 @@ Item {
     property string apiKeyDraft: ""
     property string apiKeyDraftProvider: ""
     property bool apiKeyDirty: false
+    property string presetNameDraft: ""
+    property string presetMessage: ""
+    property bool showDeletePresetConfirm: false
+    property string deletePresetId: ""
+    property string deletePresetProvider: ""
 
     function save(key, value) {
         PluginService.savePluginData(pluginId, key, value)
         root[key] = value
+    }
+
+    function managePreset(action) {
+        commitApiKey()
+        let result = false
+        if (action === "create") result = aiService.createModelPreset(presetNameDraft)
+        if (action === "duplicate") result = aiService.duplicateModelPreset()
+        if (action === "update") result = aiService.updateModelPreset()
+        if (action === "rename") result = aiService.renameModelPreset(aiService.selectedPresetId, presetNameDraft)
+        if (action === "delete" && deletePresetProvider === provider) result = aiService.deleteModelPreset(deletePresetId)
+        showDeletePresetConfirm = false
+        presetMessage = result ? I18n.tr("Preset saved.") : I18n.tr("Choose a unique preset name, or stop the current response first.")
+        if (result)
+            presetNameDraft = aiService.selectedModelPreset?.name || ""
     }
 
     function defaultsForProvider(id) {
@@ -295,6 +314,8 @@ Item {
 
         applyActiveProfile()
         useMonospace = PluginService.loadPluginData(pluginId, "useMonospace", false)
+        if (deletePresetProvider !== provider)
+            showDeletePresetConfirm = false
     }
 
     function focusApiKeyField() {
@@ -415,6 +436,102 @@ Item {
                                     options: ["openai", "anthropic", "gemini", "inception", "ollama", "custom"]
                                     currentValue: root.provider
                                     onValueChanged: value => setProvider(value)
+                                }
+
+                                StyledText {
+                                    text: I18n.tr("Model preset")
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                }
+                                DankDropdown {
+                                    width: parent.width
+                                    enabled: !aiService.conversationBusy
+                                    options: (aiService.modelPresets || []).map(preset => preset.name)
+                                    currentValue: aiService.customModelSettings ? I18n.tr("Custom") : aiService.activePresetName
+                                    onValueChanged: value => {
+                                        commitApiKey()
+                                        if (aiService.selectModelPresetByName(value)) {
+                                            root.presetNameDraft = value
+                                            root.presetMessage = ""
+                                        }
+                                    }
+                                }
+                                StyledText {
+                                    width: parent.width
+                                    text: I18n.tr("Edit the model and options below, then save a new preset or update the selected one. API keys and the endpoint are shared by this provider.")
+                                    color: Theme.surfaceVariantText
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    wrapMode: Text.WordWrap
+                                }
+                                DankTextField {
+                                    width: parent.width
+                                    text: root.presetNameDraft
+                                    placeholderText: I18n.tr("Preset name")
+                                    onTextEdited: root.presetNameDraft = text
+                                }
+                                Flow {
+                                    width: parent.width
+                                    spacing: Theme.spacingS
+                                    enabled: !aiService.conversationBusy
+                                    DankButton {
+                                        text: I18n.tr("Save as preset")
+                                        enabled: root.presetNameDraft.trim().length > 0
+                                        onClicked: root.managePreset("create")
+                                    }
+                                    DankButton {
+                                        text: I18n.tr("Update preset")
+                                        enabled: !!aiService.selectedModelPreset
+                                        onClicked: root.managePreset("update")
+                                    }
+                                    DankButton {
+                                        text: I18n.tr("Duplicate")
+                                        onClicked: root.managePreset("duplicate")
+                                    }
+                                    DankButton {
+                                        text: I18n.tr("Rename")
+                                        enabled: !!aiService.selectedModelPreset && root.presetNameDraft.trim().length > 0
+                                        onClicked: root.managePreset("rename")
+                                    }
+                                    DankButton {
+                                        text: I18n.tr("Delete preset")
+                                        enabled: (aiService.modelPresets || []).length > 1
+                                            && aiService.modelPresets[0].id !== aiService.selectedPresetId
+                                        onClicked: {
+                                            root.deletePresetId = aiService.selectedPresetId
+                                            root.deletePresetProvider = root.provider
+                                            root.showDeletePresetConfirm = true
+                                        }
+                                    }
+                                }
+                                Column {
+                                    visible: root.showDeletePresetConfirm
+                                    width: parent.width
+                                    spacing: Theme.spacingS
+                                    StyledText {
+                                        width: parent.width
+                                        text: I18n.tr("Delete this preset? Its conversation tabs will use the default preset; their messages are kept.")
+                                        color: Theme.surfaceText
+                                        wrapMode: Text.WordWrap
+                                    }
+                                    Row {
+                                        spacing: Theme.spacingS
+                                        DankButton {
+                                            text: I18n.tr("Cancel")
+                                            onClicked: root.showDeletePresetConfirm = false
+                                        }
+                                        DankButton {
+                                            text: I18n.tr("Delete")
+                                            enabled: !aiService.conversationBusy
+                                            onClicked: root.managePreset("delete")
+                                        }
+                                    }
+                                }
+                                StyledText {
+                                    width: parent.width
+                                    visible: root.presetMessage.length > 0
+                                    text: root.presetMessage
+                                    color: Theme.surfaceVariantText
+                                    wrapMode: Text.WordWrap
                                 }
 
                                 // Base URL

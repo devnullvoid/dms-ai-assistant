@@ -270,4 +270,145 @@ TestCase {
         verify(service.selectConversation(first));
         compare(service.messagesModel.get(0).content, "Gemini first");
     }
+
+    function test_default_preset_migrates_without_copying_credentials() {
+        compare(service.modelPresets.length, 1);
+        compare(service.modelPresets[0].name, "Default");
+        compare(service.modelPresets[0].values.model, service.model);
+        verify(!service.customModelSettings);
+        const stored = JSON.stringify(PluginService.loadPluginData("aiAssistant", "modelPresets", {}));
+        verify(stored.indexOf("old-gemini-fixture") === -1);
+        verify(stored.indexOf("apiKey") === -1);
+        verify(stored.indexOf("baseUrl") === -1);
+        compare(service.resolveApiKey(), "old-gemini-fixture");
+    }
+
+    function test_create_select_and_request_parameters_preserve_chat() {
+        const original = service.model;
+        const tab = service.activeConversationId;
+        appendUser("Keep this conversation");
+        service.conversationDraft = "keep draft";
+        settings.saveActiveFields({model: "fast-fixture", temperature: 0.2, maxTokens: 512, geminiWebSearch: true});
+        verify(service.customModelSettings);
+        const fast = service.createModelPreset("Quick answers");
+        verify(fast.length > 0);
+        verify(!service.customModelSettings);
+        compare(service.modelPresets[0].values.model, original);
+        verify(service.selectModelPreset(service.modelPresets[0].id));
+        compare(service.model, original);
+        verify(service.selectModelPreset(fast));
+        const payload = service.buildPayload("question");
+        compare(payload.model, "fast-fixture");
+        compare(payload.temperature, 0.2);
+        compare(payload.max_tokens, 512);
+        compare(payload.geminiWebSearch, true);
+        compare(service.activeConversationId, tab);
+        compare(service.messageCount, 1);
+        compare(service.conversationDraft, "keep draft");
+        compare(service.resolveApiKey(), "old-gemini-fixture");
+    }
+
+    function test_custom_settings_require_explicit_update() {
+        const id = service.selectedPresetId;
+        const original = service.selectedModelPreset.values.model;
+        service.setCurrentModel("experiment-fixture");
+        verify(service.customModelSettings);
+        compare(service.activePresetName, "Custom");
+        compare(service.selectedModelPreset.values.model, original);
+        verify(service.updateModelPreset());
+        verify(!service.customModelSettings);
+        compare(service.selectedModelPreset.values.model, "experiment-fixture");
+        compare(service.selectedPresetId, id);
+    }
+
+    function test_tabs_restore_presets_and_custom_overrides() {
+        const first = service.activeConversationId;
+        const defaultId = service.selectedPresetId;
+        service.setCurrentModel("research-fixture");
+        const research = service.createModelPreset("Research");
+        settings.saveActiveField("temperature", 0.9);
+        verify(service.customModelSettings);
+        service.createConversation();
+        const second = service.activeConversationId;
+        verify(service.selectModelPreset(defaultId));
+        service.selectConversation(first);
+        compare(service.selectedPresetId, research);
+        compare(service.model, "research-fixture");
+        compare(service.temperature, 0.9);
+        verify(service.customModelSettings);
+        service.restoreConversations(JSON.parse(service.persistedSession));
+        compare(service.selectedPresetId, research);
+        compare(service.temperature, 0.9);
+        service.selectConversation(second);
+        compare(service.selectedPresetId, defaultId);
+        verify(!service.customModelSettings);
+    }
+
+    function test_duplicate_rename_and_delete_fallback_preserve_tabs() {
+        const first = service.activeConversationId;
+        const defaultId = service.selectedPresetId;
+        appendUser("First history");
+        service.setCurrentModel("quick-fixture");
+        const quick = service.createModelPreset("Quick");
+        verify(!service.createModelPreset(" quick "));
+        verify(service.renameModelPreset(quick, "Fast"));
+        const duplicate = service.duplicateModelPreset();
+        verify(duplicate !== quick);
+        compare(service.activePresetName, "Fast copy");
+        verify(service.selectModelPreset(quick));
+        service.createConversation();
+        appendUser("Second history");
+        service.selectModelPreset(defaultId);
+        verify(service.deleteModelPreset(quick));
+        service.selectConversation(first);
+        compare(service.selectedPresetId, defaultId);
+        compare(service.messageCount, 1);
+        compare(service.messagesModel.get(0).content, "First history");
+        verify(!service.deleteModelPreset(defaultId));
+        verify(!service.renameModelPreset(duplicate, "Default"));
+    }
+
+    function test_presets_are_provider_scoped_and_blocked_during_streaming() {
+        const preset = service.createModelPreset("Gemini only");
+        service.isStreaming = true;
+        verify(!service.selectModelPreset(service.modelPresets[0].id));
+        verify(!service.createModelPreset("Blocked"));
+        verify(!service.updateModelPreset());
+        verify(!service.duplicateModelPreset());
+        verify(!service.renameModelPreset(preset, "Blocked"));
+        verify(!service.deleteModelPreset(preset));
+        service.isStreaming = false;
+        settings.setProvider("inception");
+        compare(service.modelPresets.length, 1);
+        settings.saveActiveFields({inceptionReasoningEffort: "high", inceptionReasoningSummary: false, inceptionReasoningSummaryWait: true});
+        const reasoning = service.createModelPreset("Reasoning");
+        const payload = service.buildPayload("question");
+        compare(payload.inceptionReasoningEffort, "high");
+        compare(payload.inceptionReasoningSummary, false);
+        compare(payload.inceptionReasoningSummaryWait, true);
+        verify(reasoning !== preset);
+        settings.setProvider("gemini");
+        compare(service.modelPresets.length, 2);
+        compare(service.selectedPresetId, preset);
+    }
+
+    function test_updates_follow_preset_but_keep_other_tabs_custom_overrides() {
+        service.setCurrentModel("research-fixture");
+        const research = service.createModelPreset("Research");
+        const customTab = service.activeConversationId;
+        settings.saveActiveField("temperature", 0.9);
+        service.createConversation();
+        const followingTab = service.activeConversationId;
+        service.selectModelPreset(research);
+        settings.saveActiveField("temperature", 0.3);
+        service.updateModelPreset();
+        verify(!service.customModelSettings);
+        service.selectConversation(customTab);
+        compare(service.temperature, 0.9);
+        verify(service.customModelSettings);
+        service.selectConversation(followingTab);
+        compare(service.temperature, 0.3);
+        verify(!service.customModelSettings);
+        verify(service.persistedSession.indexOf("old-gemini-fixture") === -1);
+    }
 }

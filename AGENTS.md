@@ -113,6 +113,16 @@ With `DMS_LOG_LEVEL=debug`, watch for:
 
 ## File Modification Guidelines
 
+### Model presets (1.9.0, #10)
+
+- `ModelPresets.js` whitelists generation fields. Never copy credentials, credential environment variables, or endpoints into presets or per-tab overrides.
+- Presets are stored under the `modelPresets` plugin setting, per provider. Existing settings seed the Default preset once. Provider profiles remain the effective configuration snapshot used by existing controls.
+- `selectedPresetId` identifies the base preset; `customModelSettings` compares current generation settings with its saved values. Experiments must not mutate a preset until Update preset is explicitly chosen.
+- Tabs store optional `presetId` and `modelOverrides` fields in session format v4. Null overrides follow preset updates; custom overrides remain independent. Preserve the outgoing preset/override snapshot before provider settings are loaded.
+- Preset selection/deletion must preserve conversation messages and drafts. The first preset cannot be deleted; deleting others assigns affected tabs to that fallback. All preset management operations are guarded by `conversationBusy`.
+- `updatingPresets` prevents synchronous PluginService reloads while effective settings and selected IDs are committed. Skip unchanged settings writes when merely restoring a tab.
+- Tests cover migration, credential exclusion, request parameters, provider/tab isolation, custom-versus-following behavior, fallback after deletion, and actual preset/settings/session-file persistence across processes in temporary directories.
+
 ### Conversation tabs (1.8.0, #10)
 
 - `ConversationTabs.qml` provides the Notepad-style strip. New chat creates a tab; Clear current chat clears only the active tab; closing requires UI confirmation and must leave at least one tab per provider endpoint.

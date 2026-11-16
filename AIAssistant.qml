@@ -206,16 +206,24 @@ Item {
             }
 
             Loader {
-                active: aiService.currentModelDiscovered ?? false
+                active: (aiService.modelPresets || []).length > 0
                 visible: active
+                enabled: !aiService.conversationBusy
                 Layout.preferredWidth: 190
                 Layout.preferredHeight: 36
 
                 sourceComponent: Component {
                     DankDropdown {
-                        options: aiService.selectableModels || []
-                        currentValue: aiService.model
-                        onValueChanged: value => aiService.setCurrentModel(value)
+                        options: (aiService.modelPresets || []).map(preset => preset.name + " · " + preset.values.model)
+                            .concat([I18n.tr("Custom…")])
+                        currentValue: (aiService.customModelSettings ? I18n.tr("Custom") : aiService.activePresetName) + " · " + aiService.model
+                        onValueChanged: value => {
+                            const preset = aiService.modelPresets.find(item => item.name + " · " + item.values.model === value);
+                            if (preset)
+                                aiService.selectModelPreset(preset.id);
+                            else
+                                root.showSettingsMenu = true;
+                        }
                     }
                 }
             }

@@ -90,12 +90,16 @@ TestCase {
         const left = findChild(tabs, "scrollConversationTabsLeft");
         const right = findChild(tabs, "scrollConversationTabsRight");
         tryVerify(() => scroll.contentX > 0 && left.visible && left.enabled);
+        // Flush deferred reveal/layout work before sending consecutive mouse events.
+        waitForRendering(tabs);
         const originalX = scroll.contentX;
         mouseClick(left, 16, 16);
         verify(scroll.contentX < originalX);
         compare(tabs.activeId, "tab-9");
         compare(selectedSpy.count, 0);
         const afterLeft = scroll.contentX;
+        tryCompare(right, "enabled", true);
+        waitForRendering(tabs);
         mouseClick(right, 16, 16);
         verify(scroll.contentX > afterLeft);
         for (let i = 0; i < 20 && left.enabled; i++) mouseClick(left, 16, 16);

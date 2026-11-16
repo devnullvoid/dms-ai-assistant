@@ -6,6 +6,7 @@ import qs.Common
 import qs.Services
 import "./AIApiAdapters.js" as AIApiAdapters
 import "./ConversationStore.js" as ConversationStore
+import "./ModelPresets.js" as ModelPresets
 
 Item {
     id: root
@@ -46,6 +47,15 @@ Item {
 
     // Settings
     property var providers: ({})
+    property var presetGroups: ({})
+    property string selectedPresetId: ""
+    property int presetSerial: 0
+    property bool updatingPresets: false
+    readonly property var modelPresets: presetGroups[provider]?.presets || []
+    readonly property var selectedModelPreset: modelPresets.find(preset => preset.id === selectedPresetId) || null
+    readonly property bool customModelSettings: !selectedModelPreset
+        || !ModelPresets.same(provider, currentModelSettings(), selectedModelPreset.values)
+    readonly property string activePresetName: customModelSettings ? "Custom" : (selectedModelPreset?.name || "Default")
     property string provider: "openai"
     property string baseUrl: "https://api.openai.com"
     property string model: "gpt-5.2"
@@ -234,6 +244,8 @@ Item {
     }
 
     function loadSettings() {
+        if (updatingPresets)
+            return;
         suppressConfigChange = true
         const selectedProvider = String(PluginService.loadPluginData(pluginId, "provider", "openai")).trim() || "openai"
         const providerId = ["openai", "anthropic", "gemini", "inception", "ollama", "custom"].includes(selectedProvider) ? selectedProvider : "openai"
@@ -257,6 +269,12 @@ Item {
             syncLegacySnapshot(nextProviders[providerId])
         }
 
+        const nextConfig = providerId + "|" + nextProviders[providerId].baseUrl;
+        if (providerConfigHash && providerConfigHash !== nextConfig) {
+            if (isStreaming)
+                cancel();
+            persistCurrentMessagesForHash(providerConfigHash);
+        }
         providers = nextProviders
         provider = providerId
 
@@ -276,12 +294,155 @@ Item {
         }
         geminiWebSearch = !!active.geminiWebSearch
         useMonospace = PluginService.loadPluginData(pluginId, "useMonospace", false)
+        const rawPresets = PluginService.loadPluginData(pluginId, "modelPresets", null);
+        presetGroups = ModelPresets.restore(rawPresets, providers);
+        selectedPresetId = presetGroups[provider].selectedId;
+        if (!rawPresets) {
+            updatingPresets = true;
+            PluginService.savePluginData(pluginId, "modelPresets", presetGroups);
+            updatingPresets = false;
+        }
         suppressConfigChange = false
         refreshAvailableModels(false)
 
         const currentHash = computeConfigHash();
         if (providerConfigHash !== currentHash)
-            switchConfigHistory(currentHash)
+            switchConfigHistory(currentHash, false)
+        else if (sessionLoaded && !switchingConversation)
+            saveSession();
+    }
+
+    function currentModelSettings() {
+        return ModelPresets.values(provider, {model: model, temperature: temperature, maxTokens: maxTokens,
+            timeout: timeout, geminiWebSearch: geminiWebSearch, inceptionReasoningEffort: inceptionReasoningEffort,
+            inceptionReasoningSummary: inceptionReasoningSummary, inceptionReasoningSummaryWait: inceptionReasoningSummaryWait});
+    }
+
+    function savePresetGroups(groups) {
+        presetGroups = groups;
+        updatingPresets = true;
+        PluginService.savePluginData(pluginId, "modelPresets", groups);
+        updatingPresets = false;
+    }
+
+    function applyModelSettings(values, presetId) {
+        const previous = providers[provider];
+        const profile = normalizedProfile(provider, Object.assign({}, providers[provider], ModelPresets.values(provider, values)));
+        const groups = Object.assign({}, presetGroups);
+        groups[provider] = Object.assign({}, groups[provider], {selectedId: presetId});
+        presetGroups = groups;
+        selectedPresetId = presetId;
+        const nextProviders = Object.assign({}, providers);
+        nextProviders[provider] = profile;
+        providers = nextProviders;
+        updatingPresets = true;
+        for (const field of ModelPresets.fields(provider))
+            root[field] = profile[field];
+        if (!ModelPresets.same(provider, previous, profile)) {
+            PluginService.savePluginData(pluginId, "providers", nextProviders);
+            for (const field of ModelPresets.fields(provider)) {
+                if (previous[field] !== profile[field])
+                    PluginService.savePluginData(pluginId, field, profile[field]);
+            }
+        }
+        if (JSON.stringify(PluginService.loadPluginData(pluginId, "modelPresets", null)) !== JSON.stringify(groups))
+            PluginService.savePluginData(pluginId, "modelPresets", groups);
+        updatingPresets = false;
+        if (!switchingConversation)
+            saveSession();
+    }
+
+    function selectModelPreset(id) {
+        if (conversationBusy)
+            return false;
+        const preset = modelPresets.find(item => item.id === id);
+        if (!preset)
+            return false;
+        applyModelSettings(preset.values, preset.id);
+        return true;
+    }
+
+    function selectModelPresetByName(name) {
+        const preset = modelPresets.find(item => item.name === name);
+        return preset ? selectModelPreset(preset.id) : false;
+    }
+
+    function validPresetName(name, exceptId) {
+        const trimmed = String(name || "").trim().slice(0, 60);
+        return trimmed && !modelPresets.some(preset => preset.id !== exceptId && preset.name.toLowerCase() === trimmed.toLowerCase())
+            ? trimmed : "";
+    }
+
+    function createModelPreset(name) {
+        const validName = validPresetName(name, "");
+        if (conversationBusy || !validName)
+            return "";
+        const id = "preset-" + Date.now() + "-" + presetSerial++;
+        const preset = {id: id, name: validName, values: currentModelSettings()};
+        const groups = Object.assign({}, presetGroups);
+        groups[provider] = {selectedId: id, presets: modelPresets.concat([preset])};
+        presetGroups = groups;
+        applyModelSettings(preset.values, id);
+        return id;
+    }
+
+    function duplicateModelPreset() {
+        if (conversationBusy)
+            return "";
+        const base = (selectedModelPreset?.name || "Custom").slice(0, 45) + " copy";
+        let name = base;
+        let sequence = 2;
+        while (!validPresetName(name, ""))
+            name = base + " " + sequence++;
+        return createModelPreset(name);
+    }
+
+    function updateModelPreset() {
+        if (conversationBusy || !selectedModelPreset)
+            return false;
+        const updated = Object.assign({}, selectedModelPreset, {values: currentModelSettings()});
+        const groups = Object.assign({}, presetGroups);
+        groups[provider] = {selectedId: selectedPresetId, presets: modelPresets.map(preset => preset.id === updated.id ? updated : preset)};
+        savePresetGroups(groups);
+        saveSession();
+        return true;
+    }
+
+    function renameModelPreset(id, name) {
+        const validName = validPresetName(name, id);
+        if (conversationBusy || !validName || !modelPresets.some(preset => preset.id === id))
+            return false;
+        const groups = Object.assign({}, presetGroups);
+        groups[provider] = {selectedId: selectedPresetId, presets: modelPresets.map(preset => preset.id === id
+            ? Object.assign({}, preset, {name: validName}) : preset)};
+        savePresetGroups(groups);
+        return true;
+    }
+
+    function deleteModelPreset(id) {
+        if (conversationBusy || modelPresets.length <= 1 || modelPresets[0].id === id
+                || !modelPresets.some(preset => preset.id === id))
+            return false;
+        const presets = modelPresets.filter(preset => preset.id !== id);
+        const fallback = presets[0];
+        const groups = Object.assign({}, presetGroups);
+        groups[provider] = {selectedId: selectedPresetId === id ? fallback.id : selectedPresetId, presets: presets};
+        const histories = Object.assign({}, conversationGroups);
+        for (const config of Object.keys(histories)) {
+            if (!config.startsWith(provider + "|"))
+                continue;
+            histories[config] = Object.assign({}, histories[config], {tabs: histories[config].tabs.map(tab => tab.presetId === id
+                ? Object.assign({}, tab, {presetId: fallback.id, modelOverrides: null}) : tab)});
+        }
+        conversationGroups = histories;
+        presetGroups = groups;
+        if (selectedPresetId === id)
+            applyModelSettings(fallback.values, fallback.id);
+        else {
+            savePresetGroups(groups);
+            saveSession();
+        }
+        return true;
     }
 
     Connections {
@@ -389,6 +550,7 @@ Item {
             if (tab.id !== activeConversationId)
                 return tab;
             return Object.assign({}, tab, {messages: capped, draft: conversationDraft,
+                presetId: selectedPresetId, modelOverrides: customModelSettings ? currentModelSettings() : null,
                 title: tab.customTitle || tab.title !== "New chat" ? tab.title
                     : ConversationStore.titleFromMessages(capped, tab.title)});
         });
@@ -411,12 +573,16 @@ Item {
         do {
             id = "chat-" + Date.now() + "-" + conversationSerial++;
         } while (conversations.some(tab => tab.id === id));
-        return {id: id, title: "New chat", customTitle: false, messages: [], draft: ""};
+        return {id: id, title: "New chat", customTitle: false, messages: [], draft: "",
+            presetId: selectedPresetId, modelOverrides: customModelSettings ? currentModelSettings() : null};
     }
 
     function loadConversation(tab) {
         switchingConversation = true;
         activeConversationId = tab.id;
+        const preset = modelPresets.find(item => item.id === tab.presetId) || modelPresets[0];
+        if (preset)
+            applyModelSettings(tab.modelOverrides || preset.values, preset.id);
         conversationDraft = tab.draft || "";
         loadMessages(tab.messages || []);
         isOnline = false;
@@ -486,7 +652,7 @@ Item {
         return true;
     }
 
-    function switchConfigHistory(nextHash) {
+    function switchConfigHistory(nextHash, persistPrevious) {
         if (!nextHash)
             return;
 
@@ -494,7 +660,7 @@ Item {
             cancel();
 
         const previousHash = providerConfigHash;
-        if (previousHash && previousHash !== nextHash)
+        if (persistPrevious !== false && previousHash && previousHash !== nextHash)
             persistCurrentMessagesForHash(previousHash)
 
         providerConfigHash = nextHash;
@@ -1115,17 +1281,9 @@ Item {
 
     function setCurrentModel(nextModel) {
         const trimmed = String(nextModel || "").trim();
-        if (!trimmed || trimmed === model)
+        if (conversationBusy || !trimmed || trimmed === model)
             return;
-
-        model = trimmed;
-        const nextProviders = Object.assign({}, providers || {});
-        const active = Object.assign({}, nextProviders[provider] || normalizedProfile(provider, null));
-        active.model = trimmed;
-        nextProviders[provider] = normalizedProfile(provider, active);
-        providers = nextProviders;
-        PluginService.savePluginData(pluginId, "providers", nextProviders);
-        syncLegacySnapshot(nextProviders[provider]);
+        applyModelSettings(Object.assign({}, currentModelSettings(), {model: trimmed}), selectedPresetId);
     }
 
     Process {

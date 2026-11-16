@@ -23,10 +23,13 @@ test('key editing and history isolation with synchronous settings reloads', () =
             'loadSettings', 'setSessionApiKey', 'resolveApiKey', 'computeConfigHash', 'persistCurrentMessagesForHash',
             'switchConfigHistory', 'handleConfigChanged', 'loadMessages', 'saveSession', 'clearHistory', 'findLastUserText',
             'restoreConversations', 'publishConversations', 'newConversation', 'loadConversation', 'createConversation',
-            'selectConversation', 'renameConversation', 'closeConversation', 'cancel', 'markError'];
+            'selectConversation', 'renameConversation', 'closeConversation', 'cancel', 'markError',
+            'currentModelSettings', 'savePresetGroups', 'applyModelSettings', 'selectModelPreset', 'selectModelPresetByName',
+            'validPresetName', 'createModelPreset', 'duplicateModelPreset', 'updateModelPreset', 'renameModelPreset', 'deleteModelPreset',
+            'setCurrentModel', 'buildPayload'];
         // Exercise actual controller methods and property bindings, with no
         // provider network calls or writes to the user's settings/history.
-        const serviceProperties = service.match(/^    (?:readonly )?property [^\n]+/gm).join('\n');
+        const serviceProperties = service.match(/^    (?:readonly )?property [^\n]+(?:\n        (?:\|\||&&)[^\n]+)*/gm).join('\n');
         fs.writeFileSync(path.join(fixture, 'ServiceController.qml'), `
 import QtQuick
 import QtCore
@@ -34,6 +37,7 @@ import qs.Common
 import qs.Services
 import "TestEnvironment.js" as Quickshell
 import "ConversationStore.js" as ConversationStore
+import "ModelPresets.js" as ModelPresets
 Item {
     id: root
     ${serviceProperties}
@@ -110,6 +114,7 @@ QtObject {
 }`);
         fs.copyFileSync(path.join(__dirname, 'tst_Credentials.qml'), path.join(fixture, 'tst_Credentials.qml'));
         fs.copyFileSync(path.join(repo, 'ConversationStore.js'), path.join(fixture, 'ConversationStore.js'));
+        fs.copyFileSync(path.join(repo, 'ModelPresets.js'), path.join(fixture, 'ModelPresets.js'));
         const result = spawnSync(process.env.QML_TEST_RUNNER || '/usr/lib/qt6/bin/qmltestrunner',
             ['-input', fixture, '-import', fixture, '-o', '-,txt'], {
                 encoding: 'utf8', timeout: 30000,
